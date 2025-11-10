@@ -1,0 +1,62 @@
+{
+  "id": "sync-initial-clone",
+  "name": "Production to Staging Clone",
+  "source": {
+    "type": "MySQL",
+    "host": "production.database.cloud",
+    "port": 3306,
+    "database": "ProductionDB",
+    "user": "readonly_user",
+    "password": "CHANGE_ME",
+    "ssl": true
+  },
+  "target": {
+    "type": "MySQL",
+    "host": "staging.database.cloud",
+    "port": 3306,
+    "database": "StagingDB",
+    "user": "admin_user",
+    "password": "CHANGE_ME",
+    "ssl": true
+  },
+  "direction": "source_to_target",
+  "mode": "initial_clone",
+  "tables": [
+    {
+      "sourceTable": "users",
+      "primaryKey": ["id"],
+      "whereClause": "created_at > '2024-01-01'",
+      "enabled": true
+    },
+    {
+      "sourceTable": "products",
+      "primaryKey": ["id"],
+      "enabled": true
+    },
+    {
+      "sourceTable": "orders",
+      "primaryKey": ["id"],
+      "whereClause": "status != 'deleted'",
+      "enabled": true
+    },
+    {
+      "sourceTable": "order_items",
+      "primaryKey": ["id"],
+      "enabled": true
+    },
+    {
+      "sourceTable": "categories",
+      "primaryKey": ["id"],
+      "enabled": true
+    }
+  ],
+  "defaultBatchSize": 5000,
+  "enableDetailedLogging": true,
+  "dryRun": false,
+  "maxConcurrency": 10,
+  "retry": {
+    "maxAttempts": 5,
+    "delayMs": 3000,
+    "backoffMultiplier": 2
+  }
+}

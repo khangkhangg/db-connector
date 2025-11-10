@@ -1,0 +1,75 @@
+{
+  "id": "sync-bidirectional",
+  "name": "Bidirectional Database Synchronization",
+  "source": {
+    "type": "PostgreSQL",
+    "host": "region-east.database.cloud",
+    "port": 5432,
+    "database": "RegionalDB",
+    "user": "sync_user",
+    "password": "CHANGE_ME",
+    "ssl": true
+  },
+  "target": {
+    "type": "PostgreSQL",
+    "host": "region-west.database.cloud",
+    "port": 5432,
+    "database": "RegionalDB",
+    "user": "sync_user",
+    "password": "CHANGE_ME",
+    "ssl": true
+  },
+  "direction": "bidirectional",
+  "mode": "continuous",
+  "conflictStrategy": "latest_wins",
+  "tables": [
+    {
+      "sourceTable": "inventory",
+      "targetTable": "inventory",
+      "columns": [
+        "product_id",
+        "location_id",
+        "quantity",
+        "reserved_quantity",
+        "updated_at",
+        "updated_by"
+      ],
+      "primaryKey": ["product_id", "location_id"],
+      "timestampColumn": "updated_at",
+      "batchSize": 500,
+      "enabled": true
+    },
+    {
+      "sourceTable": "customers",
+      "targetTable": "customers",
+      "columns": [
+        "customer_id",
+        "email",
+        "phone",
+        "preferences",
+        "updated_at"
+      ],
+      "primaryKey": ["customer_id"],
+      "timestampColumn": "updated_at",
+      "whereClause": "is_active = true",
+      "enabled": true
+    },
+    {
+      "sourceTable": "product_prices",
+      "targetTable": "product_prices",
+      "primaryKey": ["product_id", "region_code"],
+      "timestampColumn": "modified_at",
+      "enabled": true
+    }
+  ],
+  "defaultBatchSize": 1000,
+  "syncIntervalMs": 30000,
+  "enableDetailedLogging": true,
+  "dryRun": false,
+  "maxConcurrency": 5,
+  "retry": {
+    "maxAttempts": 3,
+    "delayMs": 1000,
+    "backoffMultiplier": 2
+  }
+}

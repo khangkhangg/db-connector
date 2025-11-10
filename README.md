@@ -10,11 +10,12 @@
 
 ### Core Capabilities
 
-- ✅ **Schema Management**: Read, compare, and map database schemas between MySQL and MSSQL
+- ✅ **Schema Management**: Read, compare, and map database schemas between MySQL, MSSQL, and PostgreSQL
+- ✅ **Data Synchronization**: Bi-directional and unidirectional data sync with selective table/column support
 - ✅ **Migration System**: Auto-generate migrations with rollback support and drift detection
 - ✅ **CRUD Operations**: Type-safe repository pattern with validation and transaction support
 - ✅ **Observability**: HIPAA-compliant audit logging, metrics, SLO tracking, and distributed tracing
-- ✅ **REST API**: 20+ endpoints with JWT authentication and role-based access control
+- ✅ **REST API**: 30+ endpoints with JWT authentication and role-based access control
 - ✅ **CLI**: Comprehensive command-line interface for all operations
 - ✅ **Webhooks**: Real-time event notifications with signature verification
 - ✅ **Production Ready**: Docker support, Kubernetes manifests, CI/CD pipelines
@@ -38,6 +39,19 @@
 - **Security Headers**: Helmet.js integration for HTTP security
 - **Audit Trails**: Complete audit logs with sensitive data masking
 - **Encrypted Connections**: SSL/TLS support for database connections
+
+### Data Synchronization
+
+- **Multi-Database Support**: Sync between MSSQL, MySQL, and PostgreSQL
+- **Selective Sync**: Choose specific tables and columns to synchronize
+- **Bidirectional Sync**: Two-way synchronization with conflict resolution
+- **Unidirectional Sync**: One-way client-to-web or web-to-client sync
+- **Conflict Resolution**: Multiple strategies (source wins, latest wins, manual, etc.)
+- **Change Tracking**: Real-time monitoring with MSSQL Change Tracking, MySQL Binlog, PostgreSQL Logical Replication
+- **Initial Clone**: Full database replication with batch operations
+- **Continuous Sync**: Ongoing synchronization with configurable intervals
+- **Audit Logging**: Complete tracking of all sync operations
+- **Windows & Linux**: Cross-platform support for client and web servers
 
 ## Quick Start
 
@@ -88,6 +102,7 @@ npx db-connector --help
 ## Documentation
 
 - **[API Documentation](./docs/API.md)**: Complete REST API and CLI reference
+- **[Data Sync Guide](./docs/DATA_SYNC.md)**: Data synchronization setup, configuration, and usage
 - **[Deployment Guide](./docs/DEPLOYMENT.md)**: Production deployment on Docker, Kubernetes, AWS, Azure, GCP
 - **[Observability Guide](./docs/OBSERVABILITY.md)**: Monitoring, metrics, alerts, and compliance
 - **[Migration Guide](./docs/MIGRATIONS.md)**: Schema versioning and migration management
@@ -148,6 +163,30 @@ db-connector monitor health \
   --database mydb \
   --user user \
   --password password
+
+# Data Synchronization - Client to Web
+db-connector sync init \
+  --name "Client to Web Sync" \
+  --source-type mssql \
+  --source-host client.database.local \
+  --source-port 1433 \
+  --source-database ClientDB \
+  --source-user syncuser \
+  --source-password password \
+  --target-type postgresql \
+  --target-host web.database.cloud \
+  --target-port 5432 \
+  --target-database WebDB \
+  --target-user syncuser \
+  --target-password password \
+  --direction source_to_target \
+  --tables users,orders,products
+
+# Run one-time sync
+db-connector sync once --config sync-config.json
+
+# Start continuous sync
+db-connector sync start --config sync-config.json --interval 60000
 ```
 
 ### Integrated Connector

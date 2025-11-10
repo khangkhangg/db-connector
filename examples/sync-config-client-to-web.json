@@ -1,0 +1,150 @@
+{
+  "id": "sync-client-to-web",
+  "name": "Client to Web Synchronization",
+  "source": {
+    "type": "MSSQL",
+    "host": "client.database.local",
+    "port": 1433,
+    "database": "ClientDB",
+    "user": "sync_user",
+    "password": "CHANGE_ME",
+    "ssl": false
+  },
+  "target": {
+    "type": "PostgreSQL",
+    "host": "web.database.cloud",
+    "port": 5432,
+    "database": "WebDB",
+    "user": "sync_user",
+    "password": "CHANGE_ME",
+    "ssl": true
+  },
+  "direction": "source_to_target",
+  "mode": "continuous",
+  "conflictStrategy": "source_wins",
+  "tables": [
+    {
+      "sourceTable": "Users",
+      "targetTable": "users",
+      "columns": [
+        "UserID",
+        "Username",
+        "Email",
+        "FirstName",
+        "LastName",
+        "CreatedAt",
+        "UpdatedAt"
+      ],
+      "columnMappings": [
+        {
+          "source": "UserID",
+          "target": "user_id"
+        },
+        {
+          "source": "Username",
+          "target": "username"
+        },
+        {
+          "source": "Email",
+          "target": "email"
+        },
+        {
+          "source": "FirstName",
+          "target": "first_name"
+        },
+        {
+          "source": "LastName",
+          "target": "last_name"
+        },
+        {
+          "source": "CreatedAt",
+          "target": "created_at"
+        },
+        {
+          "source": "UpdatedAt",
+          "target": "updated_at"
+        }
+      ],
+      "whereClause": "IsActive = 1 AND DeletedAt IS NULL",
+      "primaryKey": ["UserID"],
+      "timestampColumn": "UpdatedAt",
+      "batchSize": 1000,
+      "enabled": true
+    },
+    {
+      "sourceTable": "Orders",
+      "targetTable": "orders",
+      "columns": [
+        "OrderID",
+        "UserID",
+        "OrderNumber",
+        "TotalAmount",
+        "Status",
+        "OrderDate",
+        "ModifiedDate"
+      ],
+      "columnMappings": [
+        {
+          "source": "OrderID",
+          "target": "order_id"
+        },
+        {
+          "source": "UserID",
+          "target": "user_id"
+        },
+        {
+          "source": "OrderNumber",
+          "target": "order_number"
+        },
+        {
+          "source": "TotalAmount",
+          "target": "total_amount"
+        },
+        {
+          "source": "Status",
+          "target": "status"
+        },
+        {
+          "source": "OrderDate",
+          "target": "order_date"
+        },
+        {
+          "source": "ModifiedDate",
+          "target": "modified_date"
+        }
+      ],
+      "whereClause": "Status IN ('completed', 'shipped', 'pending')",
+      "primaryKey": ["OrderID"],
+      "timestampColumn": "ModifiedDate",
+      "batchSize": 500,
+      "enabled": true
+    },
+    {
+      "sourceTable": "Products",
+      "targetTable": "products",
+      "columns": [
+        "ProductID",
+        "ProductName",
+        "SKU",
+        "Price",
+        "StockQuantity",
+        "CategoryID",
+        "UpdatedAt"
+      ],
+      "primaryKey": ["ProductID"],
+      "timestampColumn": "UpdatedAt",
+      "whereClause": "IsActive = 1",
+      "enabled": true
+    }
+  ],
+  "defaultBatchSize": 1000,
+  "syncIntervalMs": 60000,
+  "enableDetailedLogging": true,
+  "dryRun": false,
+  "maxConcurrency": 3,
+  "retry": {
+    "maxAttempts": 3,
+    "delayMs": 2000,
+    "backoffMultiplier": 2
+  }
+}
