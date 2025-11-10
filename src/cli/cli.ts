@@ -12,6 +12,9 @@ import { MigrationGenerator } from '../migration/migration-generator';
 import { MigrationExecutor } from '../migration/migration-executor';
 import { DriftDetector } from '../migration/drift-detector';
 import { ObservabilityManager } from '../observability/observability-manager';
+import { DataSyncManager } from '../sync/data-sync-manager';
+import { ChangeTracker, ChangeTrackingMethod } from '../sync/change-tracker';
+import { SyncConfig, SyncDirection, SyncMode, ConflictStrategy } from '../sync/types';
 import { createLogger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -635,6 +638,296 @@ auditCmd
       }
     } catch (error) {
       logger.error('Failed to generate report', { error });
+      process.exit(1);
+    }
+  });
+
+/**
+ * Data Sync Commands
+ */
+const syncCmd = program.command('sync').description('Data synchronization operations');
+
+syncCmd
+  .command('init')
+  .description('Create sync configuration file')
+  .requiredOption('--name <name>', 'Sync job name')
+  .requiredOption('--source-type <type>', 'Source database type (mssql, mysql, postgresql)')
+  .requiredOption('--source-host <host>', 'Source database host')
+  .requiredOption('--source-port <port>', 'Source database port')
+  .requiredOption('--source-database <database>', 'Source database name')
+  .requiredOption('--source-user <user>', 'Source database user')
+  .requiredOption('--source-password <password>', 'Source database password')
+  .requiredOption('--target-type <type>', 'Target database type (mssql, mysql, postgresql)')
+  .requiredOption('--target-host <host>', 'Target database host')
+  .requiredOption('--target-port <port>', 'Target database port')
+  .requiredOption('--target-database <database>', 'Target database name')
+  .requiredOption('--target-user <user>', 'Target database user')
+  .requiredOption('--target-password <password>', 'Target database password')
+  .option('--direction <direction>', 'Sync direction (source_to_target, bidirectional)', 'source_to_target')
+  .option('--mode <mode>', 'Sync mode (once, continuous, initial_clone)', 'once')
+  .option('--conflict-strategy <strategy>', 'Conflict resolution (source_wins, latest_wins)', 'source_wins')
+  .option('--tables <tables>', 'Comma-separated list of tables to sync')
+  .option('--output <file>', 'Output config file', 'sync-config.json')
+  .action(async (options) => {
+    try {
+      logger.info('Creating sync configuration', { name: options.name });
+
+      // Map database types
+      const mapDbType = (type: string): DatabaseType => {
+        const typeLower = type.toLowerCase();
+        if (typeLower === 'mssql') return DatabaseType.MSSQL;
+        if (typeLower === 'mysql') return DatabaseType.MySQL;
+        if (typeLower === 'postgresql') return DatabaseType.PostgreSQL;
+        throw new Error(`Unsupported database type: ${type}`);
+      };
+
+      // Parse tables
+      const tables = options.tables
+        ? options.tables.split(',').map((t: string) => ({
+            sourceTable: t.trim(),
+            enabled: true
+          }))
+        : [];
+
+      const config: SyncConfig = {
+        id: `sync-${Date.now()}`,
+        name: options.name,
+        source: {
+          type: mapDbType(options.sourceType),
+          host: options.sourceHost,
+          port: parseInt(options.sourcePort),
+          database: options.sourceDatabase,
+          user: options.sourceUser,
+          password: options.sourcePassword
+        },
+        target: {
+          type: mapDbType(options.targetType),
+          host: options.targetHost,
+          port: parseInt(options.targetPort),
+          database: options.targetDatabase,
+          user: options.targetUser,
+          password: options.targetPassword
+        },
+        direction: options.direction as SyncDirection,
+        mode: options.mode as SyncMode,
+        conflictStrategy: options.conflictStrategy as ConflictStrategy,
+        tables,
+        defaultBatchSize: 1000,
+        syncIntervalMs: 60000,
+        enableDetailedLogging: true
+      };
+
+      fs.writeFileSync(options.output, JSON.stringify(config, null, 2));
+      logger.info('Sync configuration created', { file: options.output });
+
+      console.log('\nNext steps:');
+      console.log('1. Edit the config file to customize table mappings and sync settings');
+      console.log('2. Run: db-connector sync once --config ' + options.output);
+    } catch (error) {
+      logger.error('Failed to create sync configuration', { error });
+      process.exit(1);
+    }
+  });
+
+syncCmd
+  .command('once')
+  .description('Run one-time data synchronization')
+  .requiredOption('--config <file>', 'Sync configuration file (JSON)')
+  .option('--dry-run', 'Run without making changes', false)
+  .action(async (options) => {
+    try {
+      logger.info('Starting one-time sync', { config: options.config });
+
+      const config: SyncConfig = JSON.parse(
+        fs.readFileSync(options.config, 'utf-8')
+      );
+
+      if (options.dryRun) {
+        config.dryRun = true;
+        logger.info('DRY RUN MODE - No changes will be made');
+      }
+
+      const syncManager = new DataSyncManager();
+      await syncManager.initialize(config);
+
+      const result = await syncManager.sync();
+
+      await syncManager.disconnect();
+
+      console.log('\nSync Results:');
+      console.log('═══════════════════════════════════════');
+      console.log(`Duration: ${result.durationMs}ms`);
+      console.log(`Tables Synced: ${result.summary.successfulTables}/${result.summary.totalTables}`);
+      console.log(`Inserted: ${result.summary.totalInserted}`);
+      console.log(`Updated: ${result.summary.totalUpdated}`);
+      console.log(`Deleted: ${result.summary.totalDeleted}`);
+      console.log(`Conflicts: ${result.summary.totalConflicts}`);
+      console.log(`Errors: ${result.summary.totalErrors}`);
+      console.log('\nTable Results:');
+      result.tableResults.forEach(tr => {
+        const status = tr.success ? '✓' : '✗';
+        console.log(
+          `  ${status} ${tr.tableName}: ` +
+          `+${tr.inserted} ~${tr.updated} -${tr.deleted} ` +
+          `(${tr.durationMs}ms)`
+        );
+      });
+
+      if (!result.success) {
+        process.exit(1);
+      }
+    } catch (error) {
+      logger.error('Sync failed', { error });
+      process.exit(1);
+    }
+  });
+
+syncCmd
+  .command('start')
+  .description('Start continuous data synchronization')
+  .requiredOption('--config <file>', 'Sync configuration file (JSON)')
+  .option('--interval <ms>', 'Sync interval in milliseconds', '60000')
+  .action(async (options) => {
+    try {
+      logger.info('Starting continuous sync', {
+        config: options.config,
+        interval: options.interval
+      });
+
+      const config: SyncConfig = JSON.parse(
+        fs.readFileSync(options.config, 'utf-8')
+      );
+
+      config.mode = SyncMode.Continuous;
+      config.syncIntervalMs = parseInt(options.interval);
+
+      const syncManager = new DataSyncManager();
+      await syncManager.initialize(config);
+
+      // Listen for events
+      syncManager.on('sync-event', (event: any) => {
+        logger.info('Sync event', {
+          type: event.type,
+          timestamp: event.timestamp
+        });
+      });
+
+      await syncManager.startContinuousSync();
+
+      console.log('\nContinuous sync started');
+      console.log('Press Ctrl+C to stop...');
+
+      // Handle graceful shutdown
+      process.on('SIGINT', async () => {
+        console.log('\nStopping sync...');
+        syncManager.stopContinuousSync();
+        await syncManager.disconnect();
+        process.exit(0);
+      });
+
+      process.on('SIGTERM', async () => {
+        console.log('\nStopping sync...');
+        syncManager.stopContinuousSync();
+        await syncManager.disconnect();
+        process.exit(0);
+      });
+
+      // Keep process alive
+      await new Promise(() => {});
+    } catch (error) {
+      logger.error('Failed to start continuous sync', { error });
+      process.exit(1);
+    }
+  });
+
+syncCmd
+  .command('status')
+  .description('Get sync job status')
+  .requiredOption('--config <file>', 'Sync configuration file (JSON)')
+  .action(async (options) => {
+    try {
+      const config: SyncConfig = JSON.parse(
+        fs.readFileSync(options.config, 'utf-8')
+      );
+
+      const syncManager = new DataSyncManager();
+      await syncManager.initialize(config);
+
+      const status = syncManager.getStatus();
+
+      await syncManager.disconnect();
+
+      console.log('\nSync Status:');
+      console.log('═══════════════════════════════════════');
+      console.log(`Sync ID: ${status.syncId}`);
+      console.log(`Status: ${status.status}`);
+      console.log(`Progress: ${status.progress}%`);
+      if (status.currentTable) {
+        console.log(`Current Table: ${status.currentTable}`);
+      }
+      if (status.lastSyncTime) {
+        console.log(`Last Sync: ${status.lastSyncTime.toISOString()}`);
+      }
+      if (status.nextSyncTime) {
+        console.log(`Next Sync: ${status.nextSyncTime.toISOString()}`);
+      }
+      if (status.errorMessage) {
+        console.log(`Error: ${status.errorMessage}`);
+      }
+
+      if (status.lastResult) {
+        console.log('\nLast Sync Results:');
+        console.log(`  Tables: ${status.lastResult.summary.successfulTables}/${status.lastResult.summary.totalTables}`);
+        console.log(`  Inserted: ${status.lastResult.summary.totalInserted}`);
+        console.log(`  Updated: ${status.lastResult.summary.totalUpdated}`);
+        console.log(`  Deleted: ${status.lastResult.summary.totalDeleted}`);
+      }
+    } catch (error) {
+      logger.error('Failed to get status', { error });
+      process.exit(1);
+    }
+  });
+
+syncCmd
+  .command('validate')
+  .description('Validate sync configuration')
+  .requiredOption('--config <file>', 'Sync configuration file (JSON)')
+  .action(async (options) => {
+    try {
+      const config: SyncConfig = JSON.parse(
+        fs.readFileSync(options.config, 'utf-8')
+      );
+
+      console.log('\nValidating sync configuration...');
+
+      // Validate basic configuration
+      const errors: string[] = [];
+
+      if (!config.name) errors.push('Missing sync name');
+      if (!config.source) errors.push('Missing source configuration');
+      if (!config.target) errors.push('Missing target configuration');
+      if (!config.tables || config.tables.length === 0) {
+        errors.push('No tables configured for sync');
+      }
+
+      if (errors.length > 0) {
+        console.log('\n✗ Configuration validation failed:');
+        errors.forEach(err => console.log(`  - ${err}`));
+        process.exit(1);
+      }
+
+      // Test connections
+      console.log('  Testing source connection...');
+      const syncManager = new DataSyncManager();
+      await syncManager.initialize(config);
+      await syncManager.disconnect();
+
+      console.log('  ✓ Source connection successful');
+      console.log('  ✓ Target connection successful');
+      console.log('\n✓ Configuration is valid');
+    } catch (error) {
+      console.log('\n✗ Configuration validation failed');
+      logger.error('Validation failed', { error });
       process.exit(1);
     }
   });

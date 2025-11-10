@@ -13,6 +13,7 @@ import schemaRoutes from './routes/schema';
 import migrationRoutes from './routes/migration';
 import monitoringRoutes from './routes/monitoring';
 import auditRoutes from './routes/audit';
+import syncRoutes from './routes/sync';
 
 const logger = createLogger('APIServer');
 
@@ -117,7 +118,8 @@ export class APIServer {
           schema: '/api/schema',
           migration: '/api/migration',
           monitoring: '/api/monitoring',
-          audit: '/api/audit'
+          audit: '/api/audit',
+          sync: '/api/sync'
         }
       });
     });
@@ -127,6 +129,7 @@ export class APIServer {
     this.app.use('/api/migration', migrationRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/audit', auditRoutes);
+    this.app.use('/api/sync', syncRoutes);
 
     // 404 handler
     this.app.use((req: Request, res: Response) => {
