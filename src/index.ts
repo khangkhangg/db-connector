@@ -51,6 +51,17 @@ export * from './migration/drift-detector';
 export * from './migration/alert-manager';
 export * from './migration/migration-manager';
 
+// Export observability and monitoring
+export * from './observability/audit-logger';
+export * from './observability/metrics-collector';
+export * from './observability/slo-tracker';
+export * from './observability/runbook-manager';
+export * from './observability/alert-threshold-manager';
+export * from './observability/health-check';
+export * from './observability/performance-profiler';
+export * from './observability/distributed-tracing';
+export * from './observability/observability-manager';
+
 /**
  * Main DB Schema Mapper Service
  */
