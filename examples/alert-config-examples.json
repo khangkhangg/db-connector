@@ -1,0 +1,248 @@
+{
+  "examples": [
+    {
+      "name": "Simple Webhook Configuration",
+      "description": "Just configure and it works - no code needed!",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "medium",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "channels": [
+          {
+            "type": "webhook",
+            "enabled": true,
+            "config": {
+              "url": "https://your-api.com/alerts",
+              "headers": {
+                "Authorization": "Bearer your-token",
+                "X-Api-Key": "your-key"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Telegram Bot Alert",
+      "description": "Send alerts to Telegram with PHI protection",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "high",
+        "notifyOnDrift": true,
+        "notifyOnMigration": false,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "channels": [
+          {
+            "type": "telegram",
+            "enabled": true,
+            "config": {
+              "botToken": "YOUR_BOT_TOKEN_FROM_BOTFATHER",
+              "chatId": "YOUR_CHAT_ID"
+            }
+          }
+        ]
+      },
+      "setup_instructions": {
+        "step1": "Talk to @BotFather on Telegram and create a new bot",
+        "step2": "Get your bot token from BotFather",
+        "step3": "Start a chat with your bot and send a message",
+        "step4": "Get your chat ID from https://api.telegram.org/botYOUR_TOKEN/getUpdates",
+        "step5": "Use the token and chat ID in the config above"
+      }
+    },
+    {
+      "name": "Multi-Channel with PHI Protection",
+      "description": "Alert to multiple channels with automatic PHI masking",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "medium",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "phiFields": [
+          "patient_name",
+          "medical_record_number",
+          "insurance_id",
+          "prescription"
+        ],
+        "channels": [
+          {
+            "type": "slack",
+            "enabled": true,
+            "maskPHI": true,
+            "config": {
+              "webhookUrl": "https://hooks.slack.com/services/YOUR/WEBHOOK"
+            }
+          },
+          {
+            "type": "telegram",
+            "enabled": true,
+            "maskPHI": true,
+            "config": {
+              "botToken": "YOUR_BOT_TOKEN",
+              "chatId": "YOUR_CHAT_ID"
+            }
+          },
+          {
+            "type": "email",
+            "enabled": true,
+            "maskPHI": false,
+            "config": {
+              "recipients": ["compliance@example.com"],
+              "from": "alerts@example.com",
+              "smtpHost": "smtp.example.com",
+              "smtpPort": 587,
+              "smtpUser": "alerts@example.com",
+              "smtpPassword": "password"
+            }
+          },
+          {
+            "type": "pagerduty",
+            "enabled": true,
+            "config": {
+              "routingKey": "YOUR_PAGERDUTY_ROUTING_KEY"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Discord Community Alerts",
+      "description": "Send alerts to Discord server",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "low",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "channels": [
+          {
+            "type": "discord",
+            "enabled": true,
+            "config": {
+              "webhookUrl": "https://discord.com/api/webhooks/YOUR/WEBHOOK"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Microsoft Teams Integration",
+      "description": "Enterprise teams notification",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "medium",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "channels": [
+          {
+            "type": "teams",
+            "enabled": true,
+            "config": {
+              "webhookUrl": "https://outlook.office.com/webhook/YOUR/WEBHOOK"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Production Setup - All Channels",
+      "description": "Complete production configuration with all alert channels",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "medium",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "phiFields": [
+          "patient",
+          "medical",
+          "health",
+          "diagnosis",
+          "treatment"
+        ],
+        "channels": [
+          {
+            "type": "slack",
+            "enabled": true,
+            "maskPHI": true,
+            "config": {
+              "webhookUrl": "${SLACK_WEBHOOK_URL}"
+            }
+          },
+          {
+            "type": "telegram",
+            "enabled": true,
+            "maskPHI": true,
+            "config": {
+              "botToken": "${TELEGRAM_BOT_TOKEN}",
+              "chatId": "${TELEGRAM_CHAT_ID}"
+            }
+          },
+          {
+            "type": "pagerduty",
+            "enabled": true,
+            "config": {
+              "routingKey": "${PAGERDUTY_ROUTING_KEY}"
+            }
+          },
+          {
+            "type": "webhook",
+            "enabled": true,
+            "maskPHI": true,
+            "config": {
+              "url": "${CUSTOM_WEBHOOK_URL}",
+              "headers": {
+                "Authorization": "Bearer ${WEBHOOK_TOKEN}"
+              }
+            }
+          },
+          {
+            "type": "email",
+            "enabled": true,
+            "maskPHI": false,
+            "config": {
+              "recipients": ["ops@example.com", "compliance@example.com"],
+              "from": "alerts@example.com"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Environment-Based Configuration",
+      "description": "Use environment variables for sensitive data",
+      "config": {
+        "enabled": true,
+        "severityThreshold": "medium",
+        "notifyOnDrift": true,
+        "notifyOnMigration": true,
+        "notifyOnFailure": true,
+        "maskPHI": true,
+        "channels": [
+          {
+            "type": "telegram",
+            "enabled": true,
+            "config": {
+              "botToken": "env:TELEGRAM_BOT_TOKEN",
+              "chatId": "env:TELEGRAM_CHAT_ID"
+            }
+          }
+        ]
+      },
+      "env_vars": {
+        "TELEGRAM_BOT_TOKEN": "Get from @BotFather",
+        "TELEGRAM_CHAT_ID": "Your Telegram chat ID"
+      }
+    }
+  ]
+}
