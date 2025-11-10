@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Development application with hot reload
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: db-connector-dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      API_PORT: 3000
+      API_HOST: 0.0.0.0
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: devdb
+      MYSQL_USER: devuser
+      MYSQL_PASSWORD: devpassword
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - dev-network
+
+  # MySQL for development
+  mysql:
+    image: mysql:8.0
+    container_name: db-connector-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: devdb
+      MYSQL_USER: devuser
+      MYSQL_PASSWORD: devpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-dev-data:/var/lib/mysql
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  dev-network:
+    driver: bridge
+
+volumes:
+  mysql-dev-data:

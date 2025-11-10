@@ -1,0 +1,54 @@
+# Prometheus configuration for DB Schema Mapper Connector
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'db-connector'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Rules and alerts
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # DB Schema Mapper Connector metrics
+  - job_name: 'db-connector'
+    static_configs:
+      - targets: ['app:3000']
+    metrics_path: '/api/monitoring/metrics'
+    params:
+      format: ['prometheus']
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # MySQL metrics (if using mysqld_exporter)
+  - job_name: 'mysql'
+    static_configs:
+      - targets: []
+        # - mysql-exporter:9104
+
+  # MSSQL metrics (if using mssql_exporter)
+  - job_name: 'mssql'
+    static_configs:
+      - targets: []
+        # - mssql-exporter:4000
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: []
+        # - node-exporter:9100
