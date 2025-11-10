@@ -34,6 +34,14 @@ export * from './utils/logger';
 export * from './utils/error-handler';
 export * from './utils/config-loader';
 
+// Export CRUD and data access
+export * from './query/query-builder';
+export * from './data-access/base-repository';
+export * from './data-access/crud-service';
+export * from './transaction/transaction-manager';
+export * from './validation/data-validator';
+export * from './monitoring/connection-pool-monitor';
+
 /**
  * Main DB Schema Mapper Service
  */
