@@ -42,6 +42,15 @@ export * from './transaction/transaction-manager';
 export * from './validation/data-validator';
 export * from './monitoring/connection-pool-monitor';
 
+// Export migration and versioning
+export * from './migration/migration-types';
+export * from './migration/schema-version-manager';
+export * from './migration/migration-generator';
+export * from './migration/migration-executor';
+export * from './migration/drift-detector';
+export * from './migration/alert-manager';
+export * from './migration/migration-manager';
+
 /**
  * Main DB Schema Mapper Service
  */
