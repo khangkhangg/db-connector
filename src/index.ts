@@ -62,6 +62,13 @@ export * from './observability/performance-profiler';
 export * from './observability/distributed-tracing';
 export * from './observability/observability-manager';
 
+// Export integration and API
+export * from './integration/webhook-manager';
+export * from './integration/integrated-connector';
+export * from './api/server';
+export * from './api/middleware/auth';
+export * from './api/middleware/error-handler';
+
 /**
  * Main DB Schema Mapper Service
  */
