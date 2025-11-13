@@ -124,10 +124,7 @@ router.post('/test', async (req: Request, res: Response) => {
 
     // For SQL Auth or other databases
     const connectorConfig = buildConnectorConfig(config);
-    const connector = await createAndConnectConnector({
-      type: config.type,
-      config: connectorConfig
-    });
+    const connector = await createAndConnectConnector(config.type, connectorConfig);
 
     // Test query
     await connector.executeQuery('SELECT 1 as test');
@@ -200,10 +197,7 @@ router.post('/connect', async (req: Request, res: Response) => {
 
     // For SQL Auth or other databases
     const connectorConfig = buildConnectorConfig(config);
-    connector = await createAndConnectConnector({
-      type: config.type,
-      config: connectorConfig
-    });
+    connector = await createAndConnectConnector(config.type, connectorConfig);
 
     connectionId = `${config.type.toLowerCase()}-${Date.now()}`;
     activeConnections.set(connectionId, connector);

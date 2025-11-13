@@ -403,6 +403,38 @@ export class MetricsCollector {
   }
 
   /**
+   * Get all metrics (alias for getMetricsSummary)
+   */
+  getMetrics(): {
+    queries: QueryMetrics;
+    pool: PoolMetrics;
+    system: SystemMetrics;
+  } {
+    return this.getMetricsSummary();
+  }
+
+  /**
+   * Get transaction metrics
+   */
+  getTransactionMetrics(): {
+    total: number;
+    committed: number;
+    rolledBack: number;
+  } {
+    const committedMetric = this.metrics.get('db_transaction_committed_total');
+    const rolledBackMetric = this.metrics.get('db_transaction_rolled_back_total');
+
+    const committed = committedMetric?.values[committedMetric.values.length - 1]?.value || 0;
+    const rolledBack = rolledBackMetric?.values[rolledBackMetric.values.length - 1]?.value || 0;
+
+    return {
+      total: committed + rolledBack,
+      committed,
+      rolledBack
+    };
+  }
+
+  /**
    * Increment counter
    */
   private incrementCounter(name: string, labels?: Record<string, string>): void {

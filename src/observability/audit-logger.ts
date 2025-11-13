@@ -455,6 +455,22 @@ export class AuditLogger {
   }
 
   /**
+   * Get audit logs (alias for queryLogs for backward compatibility)
+   */
+  async getAuditLogs(filters?: {
+    startDate?: Date;
+    endDate?: Date;
+    userId?: string;
+    eventType?: AuditEventType;
+    resource?: string;
+    severity?: AuditSeverity;
+    phiAccessed?: boolean;
+    limit?: number;
+  }): Promise<AuditEvent[]> {
+    return this.queryLogs(filters || {});
+  }
+
+  /**
    * Generate compliance report
    */
   async generateComplianceReport(startDate: Date, endDate: Date): Promise<{

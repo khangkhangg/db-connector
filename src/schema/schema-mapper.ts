@@ -8,10 +8,12 @@ import {
   ColumnMetadata,
   DatabaseType,
   StandardDataType,
-  SchemaMappingOptions
+  SchemaMappingOptions,
+  SchemaComparison
 } from './types';
 import { createLogger } from '../utils/logger';
 import { SchemaMappingError } from '../utils/error-handler';
+import { SchemaValidator } from './schema-validator';
 
 export class SchemaMapper {
   private logger = createLogger('SchemaMapper');
@@ -269,5 +271,13 @@ export class SchemaMapper {
   private requiresLength(dataType: string): boolean {
     const typesRequiringLength = ['VARCHAR', 'NVARCHAR', 'CHAR', 'NCHAR', 'VARBINARY', 'BINARY'];
     return typesRequiringLength.some(type => dataType.toUpperCase().startsWith(type));
+  }
+
+  /**
+   * Compare two schemas (delegates to SchemaValidator)
+   */
+  compareSchemas(oldSchema: DatabaseSchema, newSchema: DatabaseSchema): SchemaComparison {
+    const validator = new SchemaValidator();
+    return validator.compareSchemas(oldSchema, newSchema);
   }
 }

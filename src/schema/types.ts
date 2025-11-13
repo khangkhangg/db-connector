@@ -7,7 +7,8 @@
  */
 export enum DatabaseType {
   MSSQL = 'mssql',
-  MySQL = 'mysql'
+  MySQL = 'mysql',
+  PostgreSQL = 'postgresql'
 }
 
 /**
