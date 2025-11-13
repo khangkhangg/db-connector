@@ -321,9 +321,12 @@ router.get('/current-user', async (req: Request, res: Response) => {
  * Helper function to build connector configuration
  */
 function buildConnectorConfig(config: any): any {
-  if (config.type === 'MSSQL') {
+  // Normalize type to uppercase for comparison
+  const type = config.type?.toUpperCase();
+
+  if (type === 'MSSQL') {
     const mssqlConfig: any = {
-      server: config.server,
+      server: config.server || config.host,
       database: config.database,
       options: {
         encrypt: config.encrypt ?? false,
@@ -337,7 +340,7 @@ function buildConnectorConfig(config: any): any {
         type: 'default'
       };
     } else {
-      mssqlConfig.user = config.username;
+      mssqlConfig.user = config.username || config.user;
       mssqlConfig.password = config.password;
     }
 
@@ -346,20 +349,20 @@ function buildConnectorConfig(config: any): any {
     }
 
     return mssqlConfig;
-  } else if (config.type === 'MySQL') {
+  } else if (type === 'MYSQL') {
     return {
-      host: config.server,
+      host: config.server || config.host,
       port: config.port || 3306,
       database: config.database,
-      user: config.username,
+      user: config.username || config.user,
       password: config.password
     };
-  } else if (config.type === 'PostgreSQL') {
+  } else if (type === 'POSTGRESQL') {
     return {
-      host: config.server,
+      host: config.server || config.host,
       port: config.port || 5432,
       database: config.database,
-      user: config.username,
+      user: config.username || config.user,
       password: config.password
     };
   }

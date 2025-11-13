@@ -5,6 +5,7 @@
 import { BaseDatabaseConnector } from './base-connector';
 import { MSSQLConnector } from './mssql-connector';
 import { MySQLConnector } from './mysql-connector';
+import { PostgreSQLConnector } from './postgresql-connector';
 import { ConnectionConfig, DatabaseType } from '../schema/types';
 import { ConfigurationError } from '../utils/error-handler';
 
@@ -12,14 +13,24 @@ import { ConfigurationError } from '../utils/error-handler';
  * Create a database connector based on type
  */
 export function createConnector(
-  databaseType: DatabaseType,
+  databaseType: DatabaseType | string,
   config: ConnectionConfig
 ): BaseDatabaseConnector {
-  switch (databaseType) {
+  // Normalize to DatabaseType enum if string
+  const normalizedType = typeof databaseType === 'string'
+    ? databaseType.toLowerCase()
+    : databaseType;
+
+  switch (normalizedType) {
     case DatabaseType.MSSQL:
+    case 'mssql':
       return new MSSQLConnector(config);
     case DatabaseType.MySQL:
+    case 'mysql':
       return new MySQLConnector(config);
+    case DatabaseType.PostgreSQL:
+    case 'postgresql':
+      return new PostgreSQLConnector(config);
     default:
       throw new ConfigurationError(
         `Unsupported database type: ${databaseType}`,
