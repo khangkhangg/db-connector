@@ -4,7 +4,7 @@
 
 import { BaseDatabaseConnector } from '../connectors/base-connector';
 import { BaseRepository } from './base-repository';
-import { TransactionManager, TransactionContext, TransactionOptions } from '../transaction/transaction-manager';
+import { TransactionManager } from '../transaction/transaction-manager';
 import { WhereCondition, QueryOptions } from '../query/query-builder';
 import { createLogger } from '../utils/logger';
 
@@ -23,7 +23,7 @@ export class CrudService<T> {
 
   constructor(
     private repository: BaseRepository<T>,
-    private connector: BaseDatabaseConnector
+    connector: BaseDatabaseConnector
   ) {
     this.transactionManager = new TransactionManager(connector);
   }
@@ -33,7 +33,7 @@ export class CrudService<T> {
    */
   async create(data: Partial<T>): Promise<CrudOperationResult<T>> {
     try {
-      const result = await this.transactionManager.executeInTransaction(async (ctx) => {
+      const result = await this.transactionManager.executeInTransaction(async (_ctx) => {
         // Validate data before insert
         await this.validateCreate(data);
 
@@ -60,7 +60,7 @@ export class CrudService<T> {
    */
   async update(id: number | string, data: Partial<T>): Promise<CrudOperationResult<boolean>> {
     try {
-      const result = await this.transactionManager.executeInTransaction(async (ctx) => {
+      const result = await this.transactionManager.executeInTransaction(async (_ctx) => {
         // Check if record exists
         const existing = await this.repository.findById(id);
         if (!existing) {
@@ -95,7 +95,7 @@ export class CrudService<T> {
    */
   async delete(id: number | string): Promise<CrudOperationResult<boolean>> {
     try {
-      const result = await this.transactionManager.executeInTransaction(async (ctx) => {
+      const result = await this.transactionManager.executeInTransaction(async (_ctx) => {
         // Check if record exists
         const existing = await this.repository.findById(id);
         if (!existing) {
@@ -130,7 +130,7 @@ export class CrudService<T> {
    */
   async batchCreate(data: Partial<T>[]): Promise<CrudOperationResult<void>> {
     try {
-      await this.transactionManager.executeInTransaction(async (ctx) => {
+      await this.transactionManager.executeInTransaction(async (_ctx) => {
         // Validate all records
         for (const record of data) {
           await this.validateCreate(record);
@@ -164,7 +164,7 @@ export class CrudService<T> {
     data: Partial<T>
   ): Promise<CrudOperationResult<number>> {
     try {
-      const result = await this.transactionManager.executeInTransaction(async (ctx) => {
+      const result = await this.transactionManager.executeInTransaction(async (_ctx) => {
         return await this.repository.updateMany(where, data);
       });
 
@@ -194,10 +194,10 @@ export class CrudService<T> {
     try {
       const result = await this.transactionManager.executeIdempotent(
         idempotencyKey,
-        async (ctx) => {
+        async (_ctx) => {
           return await this.repository.create(data);
         },
-        async (key) => {
+        async (_key) => {
           // Check if record already exists based on unique field
           const where: WhereCondition[] = [
             { column: uniqueField, operator: '=', value: data[uniqueField as keyof T] }
@@ -247,15 +247,15 @@ export class CrudService<T> {
   /**
    * Validation hooks (override in subclasses)
    */
-  protected async validateCreate(data: Partial<T>): Promise<void> {
+  protected async validateCreate(_data: Partial<T>): Promise<void> {
     // Override in subclass for custom validation
   }
 
-  protected async validateUpdate(id: number | string, data: Partial<T>): Promise<void> {
+  protected async validateUpdate(_id: number | string, _data: Partial<T>): Promise<void> {
     // Override in subclass for custom validation
   }
 
-  protected async validateDelete(id: number | string): Promise<void> {
+  protected async validateDelete(_id: number | string): Promise<void> {
     // Override in subclass for custom validation
   }
 

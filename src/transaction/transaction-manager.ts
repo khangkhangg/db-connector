@@ -8,7 +8,6 @@ import { MySQLConnector } from '../connectors/mysql-connector';
 import { createLogger } from '../utils/logger';
 import { DatabaseConnectionError } from '../utils/error-handler';
 import * as mssql from 'mssql';
-import * as mysql from 'mysql2/promise';
 
 export enum IsolationLevel {
   READ_UNCOMMITTED = 'READ UNCOMMITTED',

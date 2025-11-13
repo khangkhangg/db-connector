@@ -2,7 +2,7 @@
  * Query builder for safe, parameterized SQL generation
  */
 
-import { DatabaseType, ColumnMetadata } from '../schema/types';
+import { DatabaseType } from '../schema/types';
 import { createLogger } from '../utils/logger';
 
 export interface WhereCondition {
