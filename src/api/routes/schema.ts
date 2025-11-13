@@ -21,14 +21,26 @@ const logger = createLogger('SchemaRoutes');
 router.post('/read', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { type, host, port, database, user, password, includeSystemTables } = req.body;
 
-  if (!type || !host || !port || !database || !user || !password) {
+  if (!type || !host || !port || !database) {
     throw createAPIError('Missing required fields', 400);
   }
 
-  const dbType = type.toLowerCase() === 'mssql' ? DatabaseType.MSSQL : DatabaseType.MySQL;
+  // Normalize type to match DatabaseType enum
+  const normalizedType = type.toLowerCase();
+  let dbType: DatabaseType;
+
+  if (normalizedType === 'mssql') {
+    dbType = DatabaseType.MSSQL;
+  } else if (normalizedType === 'mysql') {
+    dbType = DatabaseType.MySQL;
+  } else if (normalizedType === 'postgresql') {
+    dbType = DatabaseType.PostgreSQL;
+  } else {
+    throw createAPIError(`Unsupported database type: ${type}`, 400);
+  }
 
   logger.info('Reading schema', {
-    type,
+    type: dbType,
     host,
     database,
     userId: req.user?.id
