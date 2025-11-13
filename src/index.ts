@@ -40,7 +40,7 @@ export * from './data-access/base-repository';
 export * from './data-access/crud-service';
 export * from './transaction/transaction-manager';
 export * from './validation/data-validator';
-export { ConnectionPoolMonitor } from './monitoring/connection-pool-monitor';
+export { ConnectionPoolMonitor, ConnectionMetrics } from './monitoring/connection-pool-monitor';
 
 // Export migration and versioning
 export * from './migration/migration-types';
@@ -51,9 +51,16 @@ export * from './migration/drift-detector';
 export * from './migration/alert-manager';
 export * from './migration/migration-manager';
 
-// Export observability and monitoring (includes PoolMetrics and QueryMetrics)
+// Export observability and monitoring (PoolMetrics and QueryMetrics come from metrics-collector)
 export * from './observability/audit-logger';
-export * from './observability/metrics-collector';
+export {
+  MetricsCollector,
+  PoolMetrics,
+  QueryMetrics,
+  SystemMetrics,
+  Metric,
+  MetricDataPoint
+} from './observability/metrics-collector';
 export * from './observability/slo-tracker';
 export * from './observability/runbook-manager';
 export * from './observability/alert-threshold-manager';
