@@ -16,6 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            padding-bottom: 300px;
         }
 
         .container {
@@ -210,6 +211,11 @@
             margin-right: 0;
         }
 
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
         .actions-card {
             grid-column: 1 / -1;
         }
@@ -327,6 +333,159 @@
         .full-width {
             grid-column: 1 / -1;
         }
+
+        /* Live Log Panel */
+        .log-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a202c;
+            color: #e2e8f0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: height 0.3s;
+        }
+
+        .log-panel.collapsed {
+            height: 50px;
+        }
+
+        .log-panel.expanded {
+            height: 400px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #2d3748;
+            border-bottom: 1px solid #4a5568;
+            cursor: pointer;
+        }
+
+        .log-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-content {
+            height: calc(100% - 50px);
+            overflow-y: auto;
+            padding: 15px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: #2d3748;
+        }
+
+        .log-entry.info {
+            border-left: 3px solid #4299e1;
+        }
+
+        .log-entry.success {
+            border-left: 3px solid #48bb78;
+        }
+
+        .log-entry.error {
+            border-left: 3px solid #f56565;
+        }
+
+        .log-entry.request {
+            border-left: 3px solid #9f7aea;
+        }
+
+        .log-timestamp {
+            color: #718096;
+            margin-right: 10px;
+        }
+
+        .log-type {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .log-entry.info .log-type {
+            color: #4299e1;
+        }
+
+        .log-entry.success .log-type {
+            color: #48bb78;
+        }
+
+        .log-entry.error .log-type {
+            color: #f56565;
+        }
+
+        .log-entry.request .log-type {
+            color: #9f7aea;
+        }
+
+        .saved-connections-panel {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .saved-connections-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .saved-connection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .saved-connection-info h4 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .saved-connection-details {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .saved-connection-actions {
+            display: flex;
+            gap: 5px;
+        }
     </style>
 </head>
 <body>
@@ -408,6 +567,18 @@
                 <button class="btn btn-success btn-block" onclick="testConnection('source')">
                     🔌 Test Source Connection
                 </button>
+                <button class="btn btn-primary btn-block" onclick="connectToDatabase('source')">
+                    ✅ Connect Source
+                </button>
+
+                <!-- Saved Connections for Source -->
+                <div class="saved-connections-panel">
+                    <h3 style="font-size: 14px; color: #333; margin-bottom: 10px;">💾 Saved Source Connections</h3>
+                    <button class="btn btn-secondary btn-small" onclick="saveConnection('source')">
+                        Save Current Config
+                    </button>
+                    <div id="sourceSavedConnectionsList" class="saved-connections-list"></div>
+                </div>
             </div>
 
             <!-- Destination Database -->
@@ -463,6 +634,18 @@
                 <button class="btn btn-success btn-block" onclick="testConnection('target')">
                     🔌 Test Destination Connection
                 </button>
+                <button class="btn btn-primary btn-block" onclick="connectToDatabase('target')">
+                    ✅ Connect Destination
+                </button>
+
+                <!-- Saved Connections for Target -->
+                <div class="saved-connections-panel">
+                    <h3 style="font-size: 14px; color: #333; margin-bottom: 10px;">💾 Saved Destination Connections</h3>
+                    <button class="btn btn-secondary btn-small" onclick="saveConnection('target')">
+                        Save Current Config
+                    </button>
+                    <div id="targetSavedConnectionsList" class="saved-connections-list"></div>
+                </div>
             </div>
         </div>
 
@@ -496,16 +679,97 @@
         </div>
     </div>
 
+    <!-- Live Log Panel -->
+    <div class="log-panel expanded" id="logPanel">
+        <div class="log-header" onclick="toggleLogPanel()">
+            <h3>
+                <span class="log-indicator"></span>
+                Live Console Log
+            </h3>
+            <div class="log-controls">
+                <button class="btn btn-small btn-secondary" onclick="clearLogs(event)">Clear</button>
+                <button class="btn btn-small btn-secondary" id="toggleLogBtn">Collapse ▼</button>
+            </div>
+        </div>
+        <div class="log-content" id="logContent">
+            <div class="log-entry info">
+                <span class="log-timestamp">[00:00:00]</span>
+                <span class="log-type">[INFO]</span>
+                <span>System initialized. Ready to connect.</span>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = 'http://localhost:1001/api';
         let sourceConnected = false;
         let targetConnected = false;
         let discoveredInstances = [];
+        let sourceConnectionId = null;
+        let targetConnectionId = null;
+
+        // Logging functions
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-type">[${type.toUpperCase()}]</span>
+                <span>${message}</span>
+            `;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+
+            // Keep only last 100 entries
+            while (logContent.children.length > 100) {
+                logContent.removeChild(logContent.firstChild);
+            }
+        }
+
+        function logRequest(method, url, body) {
+            log(`${method} ${url}${body ? '\nBody: ' + JSON.stringify(body, null, 2) : ''}`, 'request');
+        }
+
+        function logResponse(status, data) {
+            const type = status >= 200 && status < 300 ? 'success' : 'error';
+            log(`Response ${status}: ${JSON.stringify(data, null, 2)}`, type);
+        }
+
+        function logError(message, error) {
+            log(`${message}: ${error.message || error}`, 'error');
+            console.error(message, error);
+        }
+
+        function clearLogs(event) {
+            if (event) event.stopPropagation();
+            document.getElementById('logContent').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        function toggleLogPanel() {
+            const panel = document.getElementById('logPanel');
+            const btn = document.getElementById('toggleLogBtn');
+            if (panel.classList.contains('expanded')) {
+                panel.classList.remove('expanded');
+                panel.classList.add('collapsed');
+                btn.textContent = 'Expand ▲';
+            } else {
+                panel.classList.remove('collapsed');
+                panel.classList.add('expanded');
+                btn.textContent = 'Collapse ▼';
+            }
+        }
 
         // Initialize
         window.onload = function() {
+            log('Initializing application...', 'info');
             updatePortDefaults('source');
             updatePortDefaults('target');
+            loadSavedConnections('source');
+            loadSavedConnections('target');
+            log('Application ready', 'success');
         };
 
         // Auto-discovery
@@ -513,25 +777,33 @@
             const loading = document.getElementById('discoveryLoading');
             const results = document.getElementById('discoveryResults');
 
+            log('Starting SQL Server auto-discovery...', 'info');
             loading.style.display = 'block';
             results.innerHTML = '';
 
             try {
-                const response = await fetch(`${API_BASE}/connections/discover`, {
+                const url = `${API_BASE}/connections/discover`;
+                logRequest('POST', url);
+
+                const response = await fetch(url, {
                     method: 'POST'
                 });
 
+                logResponse(response.status, await response.clone().json());
                 const data = await response.json();
 
                 if (data.success && data.instances && data.instances.length > 0) {
                     discoveredInstances = data.instances;
                     displayDiscoveredInstances(data.instances);
                     showSuccess(`Found ${data.instances.length} SQL Server instance(s)`);
+                    log(`Discovery successful: ${data.instances.length} instances found`, 'success');
                 } else {
                     showInfo('No SQL Server instances found. Use manual configuration below.');
+                    log('No instances found', 'info');
                 }
             } catch (error) {
                 showError('Discovery failed: ' + error.message);
+                logError('Discovery failed', error);
             } finally {
                 loading.style.display = 'none';
             }
@@ -567,6 +839,7 @@
             document.getElementById(`${prefix}UseWindowsAuth`).checked = true;
             toggleAuthFields(prefix);
             showInfo(`Instance loaded into ${target} connection. Update database name as needed.`);
+            log(`Loaded instance ${instance.displayName} into ${target}`, 'info');
         }
 
         // Port defaults
@@ -597,6 +870,7 @@
             const useWindowsAuth = document.getElementById(`${prefix}UseWindowsAuth`).checked;
             const credentials = document.getElementById(`${prefix}Credentials`);
             credentials.style.display = useWindowsAuth ? 'none' : 'block';
+            log(`${prefix} auth mode: ${useWindowsAuth ? 'Windows Authentication' : 'SQL Authentication'}`, 'info');
         }
 
         // Get connection config
@@ -626,26 +900,37 @@
         async function testConnection(target) {
             const config = getConnectionConfig(target);
 
+            log(`Testing ${target} connection...`, 'info');
+            log(`Config: ${config.type} ${config.host}:${config.port}/${config.database}`, 'info');
+
             if (!config.host || !config.database) {
-                showError(`Please fill in ${target} host and database`);
+                const msg = `Please fill in ${target} host and database`;
+                showError(msg);
+                log(msg, 'error');
                 return;
             }
 
             if (!config.useWindowsAuth && (!config.username || !config.password)) {
-                showError(`Please provide ${target} credentials`);
+                const msg = `Please provide ${target} credentials`;
+                showError(msg);
+                log(msg, 'error');
                 return;
             }
 
             showInfo(`Testing ${target} connection...`);
 
             try {
-                const response = await fetch(`${API_BASE}/connections/test`, {
+                const url = `${API_BASE}/connections/test`;
+                logRequest('POST', url, config);
+
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
 
                 const data = await response.json();
+                logResponse(response.status, data);
 
                 if (data.success) {
                     if (target === 'source') {
@@ -657,12 +942,177 @@
                     }
                     updateActionButtons();
                     showSuccess(`✅ ${target.charAt(0).toUpperCase() + target.slice(1)} connection successful!`);
+                    log(`${target} connection test successful`, 'success');
                 } else {
-                    showError(`❌ ${target} connection failed: ${data.message || data.error}`);
+                    const msg = `${target} connection failed: ${data.message || data.error}`;
+                    showError(`❌ ${msg}`);
+                    log(msg, 'error');
                 }
             } catch (error) {
                 showError(`Connection test failed: ${error.message}`);
+                logError(`${target} connection test failed`, error);
             }
+        }
+
+        // Connect to database
+        async function connectToDatabase(target) {
+            const config = getConnectionConfig(target);
+
+            log(`Connecting to ${target} database...`, 'info');
+
+            if (!config.host || !config.database) {
+                const msg = `Please fill in ${target} host and database`;
+                showError(msg);
+                log(msg, 'error');
+                return;
+            }
+
+            if (!config.useWindowsAuth && (!config.username || !config.password)) {
+                const msg = `Please provide ${target} credentials`;
+                showError(msg);
+                log(msg, 'error');
+                return;
+            }
+
+            showInfo(`Connecting to ${target}...`);
+
+            try {
+                const url = `${API_BASE}/connections/connect`;
+                logRequest('POST', url, config);
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+                logResponse(response.status, data);
+
+                if (data.success) {
+                    if (target === 'source') {
+                        sourceConnected = true;
+                        sourceConnectionId = data.connectionId;
+                        document.getElementById('sourceStatus').classList.add('connected');
+                    } else {
+                        targetConnected = true;
+                        targetConnectionId = data.connectionId;
+                        document.getElementById('targetStatus').classList.add('connected');
+                    }
+                    updateActionButtons();
+                    showSuccess(`✅ ${target.charAt(0).toUpperCase() + target.slice(1)} connected!`);
+                    log(`${target} connected successfully. Connection ID: ${data.connectionId}`, 'success');
+                } else {
+                    const msg = `${target} connection failed: ${data.message || data.error}`;
+                    showError(`❌ ${msg}`);
+                    log(msg, 'error');
+                }
+            } catch (error) {
+                showError(`Connection failed: ${error.message}`);
+                logError(`${target} connection failed`, error);
+            }
+        }
+
+        // Save connection
+        function saveConnection(target) {
+            const config = getConnectionConfig(target);
+            const name = prompt(`Enter a name for this ${target} connection:`, `${config.type} - ${config.host}`);
+
+            if (!name) {
+                log('Save connection cancelled', 'info');
+                return;
+            }
+
+            log(`Saving ${target} connection as "${name}"`, 'info');
+
+            const saved = JSON.parse(localStorage.getItem(`${target}Connections`) || '[]');
+            saved.push({ name, config });
+            localStorage.setItem(`${target}Connections`, JSON.stringify(saved));
+
+            showSuccess(`Connection "${name}" saved!`);
+            log(`Connection saved successfully`, 'success');
+            loadSavedConnections(target);
+        }
+
+        // Load saved connections
+        function loadSavedConnections(target) {
+            const saved = JSON.parse(localStorage.getItem(`${target}Connections`) || '[]');
+            const list = document.getElementById(`${target}SavedConnectionsList`);
+
+            if (!list) return;
+
+            list.innerHTML = '';
+
+            if (saved.length === 0) {
+                list.innerHTML = '<p style="color: #718096; font-size: 12px; margin-top: 10px;">No saved connections</p>';
+                return;
+            }
+
+            saved.forEach((conn, index) => {
+                const item = document.createElement('div');
+                item.className = 'saved-connection-item';
+
+                item.innerHTML = `
+                    <div class="saved-connection-info">
+                        <h4>${conn.name}</h4>
+                        <div class="saved-connection-details">
+                            ${conn.config.type} - ${conn.config.host}:${conn.config.port}/${conn.config.database}
+                        </div>
+                    </div>
+                    <div class="saved-connection-actions">
+                        <button class="btn btn-small btn-success" onclick="loadSavedConnection('${target}', ${index})">Load</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteSavedConnection('${target}', ${index})">Delete</button>
+                    </div>
+                `;
+
+                list.appendChild(item);
+            });
+
+            log(`Loaded ${saved.length} saved ${target} connections`, 'info');
+        }
+
+        // Load saved connection
+        function loadSavedConnection(target, index) {
+            const saved = JSON.parse(localStorage.getItem(`${target}Connections`) || '[]');
+            const conn = saved[index];
+
+            if (!conn) return;
+
+            const prefix = target === 'source' ? 'source' : 'target';
+            const config = conn.config;
+
+            document.getElementById(`${prefix}Type`).value = config.type.toLowerCase();
+            document.getElementById(`${prefix}Host`).value = config.host;
+            document.getElementById(`${prefix}Port`).value = config.port;
+            document.getElementById(`${prefix}Database`).value = config.database;
+
+            if (config.username) {
+                document.getElementById(`${prefix}Username`).value = config.username;
+            }
+            if (config.password) {
+                document.getElementById(`${prefix}Password`).value = config.password;
+            }
+
+            document.getElementById(`${prefix}UseWindowsAuth`).checked = config.useWindowsAuth || false;
+
+            updatePortDefaults(prefix);
+            toggleAuthFields(prefix);
+
+            showInfo(`Loaded connection "${conn.name}"`);
+            log(`Loaded saved connection: ${conn.name}`, 'info');
+        }
+
+        // Delete saved connection
+        function deleteSavedConnection(target, index) {
+            if (!confirm('Delete this connection?')) return;
+
+            const saved = JSON.parse(localStorage.getItem(`${target}Connections`) || '[]');
+            const deleted = saved.splice(index, 1)[0];
+            localStorage.setItem(`${target}Connections`, JSON.stringify(saved));
+
+            showInfo(`Connection "${deleted.name}" deleted`);
+            log(`Deleted connection: ${deleted.name}`, 'info');
+            loadSavedConnections(target);
         }
 
         // Update action buttons
@@ -671,46 +1121,59 @@
             document.getElementById('viewTargetBtn').disabled = !targetConnected;
             document.getElementById('compareBtn').disabled = !(sourceConnected && targetConnected);
             document.getElementById('syncBtn').disabled = !(sourceConnected && targetConnected);
+            log(`Action buttons updated. Source: ${sourceConnected}, Target: ${targetConnected}`, 'info');
         }
 
         // View schema
         async function viewSchema(target) {
             const config = getConnectionConfig(target);
             showInfo(`Reading ${target} schema...`);
+            log(`Reading ${target} schema...`, 'info');
 
             try {
-                const response = await fetch(`${API_BASE}/schema/read`, {
+                const url = `${API_BASE}/schema/read`;
+                logRequest('POST', url, config);
+
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
 
                 const data = await response.json();
+                logResponse(response.status, data);
 
                 if (data.success) {
                     displayResults(`${target.toUpperCase()} SCHEMA:\n\n` + JSON.stringify(data, null, 2));
                     showSuccess(`Schema loaded: ${data.metadata.tables} tables`);
+                    log(`Schema read successful: ${data.metadata.tables} tables`, 'success');
                 } else {
                     showError('Failed to read schema: ' + (data.message || data.error));
+                    log('Failed to read schema', 'error');
                 }
             } catch (error) {
                 showError('Failed to read schema: ' + error.message);
+                logError('Schema read failed', error);
             }
         }
 
         // Compare schemas
         async function compareSchemas() {
             showInfo('Comparing schemas...');
+            log('Starting schema comparison...', 'info');
 
             try {
                 // Read source schema
                 const sourceConfig = getConnectionConfig('source');
+                log('Reading source schema...', 'info');
+
                 const sourceResponse = await fetch(`${API_BASE}/schema/read`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(sourceConfig)
                 });
                 const sourceData = await sourceResponse.json();
+                logResponse(sourceResponse.status, sourceData);
 
                 if (!sourceData.success) {
                     throw new Error('Failed to read source schema');
@@ -718,18 +1181,22 @@
 
                 // Read target schema
                 const targetConfig = getConnectionConfig('target');
+                log('Reading target schema...', 'info');
+
                 const targetResponse = await fetch(`${API_BASE}/schema/read`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(targetConfig)
                 });
                 const targetData = await targetResponse.json();
+                logResponse(targetResponse.status, targetData);
 
                 if (!targetData.success) {
                     throw new Error('Failed to read target schema');
                 }
 
                 // Compare
+                log('Comparing schemas...', 'info');
                 const compareResponse = await fetch(`${API_BASE}/schema/compare`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -740,15 +1207,19 @@
                 });
 
                 const compareData = await compareResponse.json();
+                logResponse(compareResponse.status, compareData);
 
                 if (compareData.success) {
                     displayResults('SCHEMA COMPARISON:\n\n' + JSON.stringify(compareData, null, 2));
                     showSuccess('Schemas compared successfully');
+                    log('Schema comparison completed', 'success');
                 } else {
                     showError('Failed to compare schemas');
+                    log('Schema comparison failed', 'error');
                 }
             } catch (error) {
                 showError('Comparison failed: ' + error.message);
+                logError('Schema comparison failed', error);
             }
         }
 
@@ -769,24 +1240,33 @@
             };
 
             showInfo('Starting synchronization...');
+            log('Starting data synchronization...', 'info');
+            log(`Sync config: ${JSON.stringify(syncConfig, null, 2)}`, 'info');
 
             try {
-                const response = await fetch(`${API_BASE}/sync/execute`, {
+                const url = `${API_BASE}/sync/execute`;
+                logRequest('POST', url, syncConfig);
+
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(syncConfig)
                 });
 
                 const data = await response.json();
+                logResponse(response.status, data);
 
                 if (data.success) {
                     displayResults('SYNC RESULTS:\n\n' + JSON.stringify(data.result, null, 2));
                     showSuccess('Synchronization completed!');
+                    log('Data synchronization completed successfully', 'success');
                 } else {
                     showError('Sync failed: ' + (data.error || 'Unknown error'));
+                    log('Data synchronization failed', 'error');
                 }
             } catch (error) {
                 showError('Sync failed: ' + error.message);
+                logError('Data synchronization failed', error);
             }
         }
 
