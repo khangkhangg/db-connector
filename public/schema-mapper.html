@@ -981,21 +981,241 @@
             a.click();
         }
 
-        function generateDDL() {
-            alert('DDL generation will be implemented next!');
-        }
+        async function generateDDL() {
+            if (!sourceSchema || !targetSchema) {
+                alert('Please load schemas first!');
+                return;
+            }
 
-        function executeMigration() {
             if (Object.keys(tableMappings).length === 0) {
                 alert('Please create some table mappings first!');
                 return;
             }
 
-            if (!confirm(`Execute migration with ${Object.keys(tableMappings).length} mapped tables?`)) {
+            showLoading('Generating DDL migration scripts...');
+
+            try {
+                // Generate version string
+                const version = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+
+                const response = await fetch(`${config.apiBase}/migration/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        oldSchema: sourceSchema,
+                        newSchema: targetSchema,
+                        version: version,
+                        description: `Schema migration: ${Object.keys(tableMappings).length} tables mapped`
+                    })
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (!data.success) {
+                    throw new Error(data.message || data.error || 'Failed to generate migration');
+                }
+
+                // Show DDL in modal
+                showDDLModal(data.migration);
+
+            } catch (error) {
+                hideLoading();
+                alert('Error generating DDL: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        let generatedMigration = null;
+
+        function showDDLModal(migration) {
+            generatedMigration = migration;
+
+            // Create DDL modal if it doesn't exist
+            let ddlModal = document.getElementById('ddlModal');
+            if (!ddlModal) {
+                ddlModal = document.createElement('div');
+                ddlModal.id = 'ddlModal';
+                ddlModal.className = 'modal';
+                ddlModal.innerHTML = `
+                    <div class="modal-content" style="max-width: 900px; width: 95%;">
+                        <div class="modal-header">📜 Generated Migration DDL</div>
+                        <div class="modal-body">
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div>
+                                        <strong>Version:</strong> <span id="ddlVersion"></span> |
+                                        <strong>Operations:</strong> <span id="ddlOperations"></span>
+                                    </div>
+                                    <button class="btn btn-secondary" onclick="downloadDDL()">💾 Download SQL</button>
+                                </div>
+                                <div style="font-size: 13px; color: #666;">
+                                    <strong>Description:</strong> <span id="ddlDescription"></span>
+                                </div>
+                            </div>
+                            <div style="background: #1a202c; color: #e2e8f0; padding: 20px; border-radius: 8px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;">
+                                <pre id="ddlContent" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeDDLModal()">Close</button>
+                            <button class="btn btn-success" onclick="executeMigrationFromModal()">🚀 Execute Migration</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(ddlModal);
+            }
+
+            // Populate modal
+            document.getElementById('ddlVersion').textContent = migration.version;
+            document.getElementById('ddlOperations').textContent = migration.operations.length;
+            document.getElementById('ddlDescription').textContent = migration.description;
+            document.getElementById('ddlContent').textContent = formatMigrationSQL(migration);
+
+            ddlModal.classList.add('show');
+        }
+
+        function formatMigrationSQL(migration) {
+            let sql = `-- Migration Version: ${migration.version}\n`;
+            sql += `-- Description: ${migration.description}\n`;
+            sql += `-- Generated: ${migration.timestamp}\n`;
+            sql += `-- Operations: ${migration.operations.length}\n\n`;
+
+            sql += `-- ============================================\n`;
+            sql += `-- UP MIGRATION (Apply Changes)\n`;
+            sql += `-- ============================================\n\n`;
+
+            if (migration.upSQL) {
+                sql += migration.upSQL;
+            } else {
+                migration.operations.forEach((op, idx) => {
+                    sql += `-- Operation ${idx + 1}: ${op.type}\n`;
+                    if (op.sql) {
+                        sql += op.sql + '\n\n';
+                    }
+                });
+            }
+
+            sql += `\n-- ============================================\n`;
+            sql += `-- DOWN MIGRATION (Rollback Changes)\n`;
+            sql += `-- ============================================\n\n`;
+
+            if (migration.downSQL) {
+                sql += migration.downSQL;
+            } else {
+                sql += `-- Rollback SQL not generated\n`;
+            }
+
+            return sql;
+        }
+
+        function downloadDDL() {
+            if (!generatedMigration) return;
+
+            const sql = formatMigrationSQL(generatedMigration);
+            const blob = new Blob([sql], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `migration_${generatedMigration.version}.sql`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function closeDDLModal() {
+            const ddlModal = document.getElementById('ddlModal');
+            if (ddlModal) {
+                ddlModal.classList.remove('show');
+            }
+        }
+
+        function executeMigrationFromModal() {
+            closeDDLModal();
+            executeMigration();
+        }
+
+        async function executeMigration() {
+            if (Object.keys(tableMappings).length === 0) {
+                alert('Please create some table mappings first!');
                 return;
             }
 
-            alert('Migration execution will be implemented next!');
+            // Need to generate migration first if not already done
+            if (!generatedMigration) {
+                alert('Please generate DDL first!');
+                await generateDDL();
+                return;
+            }
+
+            if (!confirm(`⚠️  Execute migration with ${Object.keys(tableMappings).length} mapped tables?\n\nThis will modify the target database!`)) {
+                return;
+            }
+
+            // Ask for dry run or actual execution
+            const dryRun = confirm('Do you want to run in DRY RUN mode first?\n(Recommended - will simulate without making changes)\n\nClick OK for Dry Run, Cancel for actual execution.');
+
+            showLoading(dryRun ? 'Running migration in DRY RUN mode...' : 'Executing migration...');
+
+            try {
+                const response = await fetch(`${config.apiBase}/migration/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: config.target.type,
+                        host: config.target.host,
+                        port: config.target.port,
+                        database: config.target.database,
+                        user: config.target.user || config.target.username,
+                        password: config.target.password,
+                        migration: generatedMigration,
+                        direction: 'up',
+                        dryRun: dryRun
+                    })
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (!data.success) {
+                    throw new Error(data.message || data.error || 'Migration failed');
+                }
+
+                // Show results
+                showMigrationResults(data.result, dryRun);
+
+            } catch (error) {
+                hideLoading();
+                alert('❌ Migration execution failed:\n\n' + error.message);
+                console.error(error);
+            }
+        }
+
+        function showMigrationResults(result, dryRun) {
+            let message = dryRun ? '✅ DRY RUN SUCCESSFUL\n\n' : '✅ MIGRATION EXECUTED SUCCESSFULLY\n\n';
+
+            message += `Operations completed: ${result.appliedOperations || 0}\n`;
+            message += `Duration: ${result.duration || 'N/A'}\n\n`;
+
+            if (dryRun) {
+                message += 'No changes were made to the database.\n';
+                message += 'Review the DDL and run actual execution when ready.';
+            } else {
+                message += 'The target database has been updated.\n';
+                message += 'Please verify the changes.';
+            }
+
+            if (result.warnings && result.warnings.length > 0) {
+                message += '\n\n⚠️  WARNINGS:\n' + result.warnings.join('\n');
+            }
+
+            alert(message);
+
+            // If successful and not dry run, offer to reload schemas
+            if (!dryRun && result.success) {
+                if (confirm('Reload schemas to see the changes?')) {
+                    loadSchemas();
+                }
+            }
         }
 
         // Modal functions

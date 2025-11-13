@@ -15,13 +15,21 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
-            padding-bottom: 300px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
         }
 
         .header {
@@ -336,41 +344,49 @@
 
         /* Live Log Panel */
         .log-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            width: 400px;
             background: #1a202c;
             color: #e2e8f0;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-            z-index: 1000;
-            transition: height 0.3s;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s;
         }
 
         .log-panel.collapsed {
-            height: 50px;
+            width: 50px;
         }
 
         .log-panel.expanded {
-            height: 400px;
+            width: 400px;
         }
 
         .log-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
+            padding: 12px 15px;
             background: #2d3748;
             border-bottom: 1px solid #4a5568;
             cursor: pointer;
+            min-height: 50px;
         }
 
         .log-header h3 {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
+        }
+
+        .log-panel.collapsed .log-header h3 span:not(.log-indicator) {
+            display: none;
+        }
+
+        .log-panel.collapsed .log-controls {
+            display: none;
         }
 
         .log-indicator {
@@ -392,12 +408,16 @@
         }
 
         .log-content {
-            height: calc(100% - 50px);
+            flex: 1;
             overflow-y: auto;
-            padding: 15px 20px;
+            padding: 15px;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .log-panel.collapsed .log-content {
+            display: none;
         }
 
         .log-entry {
@@ -489,8 +509,9 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
+    <div class="main-layout">
+        <div class="container">
+            <div class="header">
             <h1>🗄️ DB Schema Mapper Connector</h1>
             <p>Connect, Compare & Synchronize Database Schemas</p>
         </div>
@@ -676,30 +697,31 @@
             </div>
         </div>
 
-        <!-- Results -->
-        <div class="card results-card" id="resultsCard">
-            <h2>📊 Results</h2>
-            <div class="results-content" id="resultsContent"></div>
-        </div>
-    </div>
-
-    <!-- Live Log Panel -->
-    <div class="log-panel expanded" id="logPanel">
-        <div class="log-header" onclick="toggleLogPanel()">
-            <h3>
-                <span class="log-indicator"></span>
-                Live Console Log
-            </h3>
-            <div class="log-controls">
-                <button class="btn btn-small btn-secondary" onclick="clearLogs(event)">Clear</button>
-                <button class="btn btn-small btn-secondary" id="toggleLogBtn">Collapse ▼</button>
+            <!-- Results -->
+            <div class="card results-card" id="resultsCard">
+                <h2>📊 Results</h2>
+                <div class="results-content" id="resultsContent"></div>
             </div>
         </div>
-        <div class="log-content" id="logContent">
-            <div class="log-entry info">
-                <span class="log-timestamp">[00:00:00]</span>
-                <span class="log-type">[INFO]</span>
-                <span>System initialized. Ready to connect.</span>
+
+        <!-- Live Log Panel -->
+        <div class="log-panel expanded" id="logPanel">
+            <div class="log-header" onclick="toggleLogPanel()">
+                <h3>
+                    <span class="log-indicator"></span>
+                    <span>Live Console Log</span>
+                </h3>
+                <div class="log-controls">
+                    <button class="btn btn-small btn-secondary" onclick="clearLogs(event)">Clear</button>
+                    <button class="btn btn-small btn-secondary" id="toggleLogBtn">◀</button>
+                </div>
+            </div>
+            <div class="log-content" id="logContent">
+                <div class="log-entry info">
+                    <span class="log-timestamp">[00:00:00]</span>
+                    <span class="log-type">[INFO]</span>
+                    <span>System initialized. Ready to connect.</span>
+                </div>
             </div>
         </div>
     </div>
@@ -758,11 +780,11 @@
             if (panel.classList.contains('expanded')) {
                 panel.classList.remove('expanded');
                 panel.classList.add('collapsed');
-                btn.textContent = 'Expand ▲';
+                btn.textContent = '▶';
             } else {
                 panel.classList.remove('collapsed');
                 panel.classList.add('expanded');
-                btn.textContent = 'Collapse ▼';
+                btn.textContent = '◀';
             }
         }
 
