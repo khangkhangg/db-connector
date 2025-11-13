@@ -5,8 +5,8 @@
 
 import { EventEmitter } from 'events';
 import { BaseDatabaseConnector } from '../connectors/base-connector';
-import { Logger } from '../utils/logger';
-import { DatabaseError } from '../utils/error-handler';
+import { createLogger } from '../utils/logger';
+import { DatabaseConnectionError } from '../utils/error-handler';
 import { RowChange, TableSyncConfig } from './types';
 import { DatabaseType } from '../schema/types';
 
@@ -110,7 +110,7 @@ export class ChangeTracker extends EventEmitter {
           break;
 
         default:
-          throw new DatabaseError(
+          throw new DatabaseConnectionError(
             `Unsupported change tracking method: ${this.config.method}`
           );
       }
@@ -127,7 +127,7 @@ export class ChangeTracker extends EventEmitter {
    */
   private async initializeMSSQLChangeTracking(): Promise<void> {
     if (this.config.databaseType !== DatabaseType.MSSQL) {
-      throw new DatabaseError('MSSQL Change Tracking requires MSSQL database');
+      throw new DatabaseConnectionError('MSSQL Change Tracking requires MSSQL database');
     }
 
     // Check if change tracking is enabled on database
@@ -172,7 +172,7 @@ export class ChangeTracker extends EventEmitter {
    */
   private async initializeMySQLBinlog(): Promise<void> {
     if (this.config.databaseType !== DatabaseType.MySQL) {
-      throw new DatabaseError('MySQL Binlog tracking requires MySQL database');
+      throw new DatabaseConnectionError('MySQL Binlog tracking requires MySQL database');
     }
 
     // Check if binary logging is enabled
@@ -195,7 +195,7 @@ export class ChangeTracker extends EventEmitter {
    */
   private async initializePostgreSQLLogical(): Promise<void> {
     if (this.config.databaseType !== DatabaseType.PostgreSQL) {
-      throw new DatabaseError(
+      throw new DatabaseConnectionError(
         'PostgreSQL Logical Replication requires PostgreSQL database'
       );
     }

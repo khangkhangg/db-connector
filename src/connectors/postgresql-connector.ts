@@ -11,7 +11,7 @@ import {
   SchemaReadOptions,
   DatabaseType
 } from '../schema/types';
-import { DatabaseError } from '../utils/error-handler';
+import { DatabaseConnectionError } from '../utils/error-handler';
 
 /**
  * PostgreSQL connector implementation
@@ -51,7 +51,7 @@ export class PostgreSQLConnector extends BaseDatabaseConnector {
       });
     } catch (error) {
       this.logger.error('Failed to connect to PostgreSQL', { error });
-      throw new DatabaseError(`PostgreSQL connection failed: ${error}`);
+      throw new DatabaseConnectionError(`PostgreSQL connection failed: ${error}`);
     }
   }
 
@@ -127,7 +127,7 @@ export class PostgreSQLConnector extends BaseDatabaseConnector {
       };
     } catch (error) {
       this.logger.error('Failed to read PostgreSQL schema', { error });
-      throw new DatabaseError(`Failed to read schema: ${error}`);
+      throw new DatabaseConnectionError(`Failed to read schema: ${error}`);
     }
   }
 
@@ -273,7 +273,7 @@ export class PostgreSQLConnector extends BaseDatabaseConnector {
       return result.rows as T;
     } catch (error) {
       this.logger.error('Query execution failed', { query, error });
-      throw new DatabaseError(`Query failed: ${error}`);
+      throw new DatabaseConnectionError(`Query failed: ${error}`);
     }
   }
 

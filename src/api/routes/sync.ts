@@ -6,11 +6,11 @@ import { Router, Request, Response } from 'express';
 import { DataSyncManager } from '../../sync/data-sync-manager';
 import { ChangeTracker, ChangeTrackingMethod } from '../../sync/change-tracker';
 import { SyncConfig, SyncDirection, SyncMode, ConflictStrategy } from '../../sync/types';
-import { authenticate } from '../middleware/auth';
-import { Logger } from '../../utils/logger';
+// import { authenticate } from '../middleware/auth'; // Not used in local client mode
+import { createLogger } from '../../utils/logger';
 
 const router = Router();
-const logger = new Logger('SyncAPI');
+const logger = createLogger('SyncAPI');
 
 // Store active sync managers (in production, use Redis or database)
 const syncManagers = new Map<string, DataSyncManager>();

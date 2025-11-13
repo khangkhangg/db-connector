@@ -3,9 +3,9 @@
  * Handles importing SQL Server MDF database files
  */
 
-import { Logger } from '../utils/logger';
+import { createLogger } from '../utils/logger';
 import { MSSQLConnector } from '../connectors/mssql-connector';
-import { DatabaseError } from '../utils/error-handler';
+import { DatabaseConnectionError, ConfigurationError } from '../utils/error-handler';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -68,7 +68,7 @@ export class MDFImportManager {
 
       // 1. Validate files exist
       if (!fs.existsSync(fileInfo.mdfPath)) {
-        throw new DatabaseError(`MDF file not found: ${fileInfo.mdfPath}`);
+        throw new DatabaseConnectionError(`MDF file not found: ${fileInfo.mdfPath}`);
       }
 
       // 2. Get database name
@@ -84,7 +84,7 @@ export class MDFImportManager {
           this.logger.info('Database exists, detaching first', { databaseName });
           await this.detachDatabase(databaseName);
         } else {
-          throw new DatabaseError(
+          throw new DatabaseConnectionError(
             `Database '${databaseName}' already exists. Use forceDetach: true to override.`
           );
         }
@@ -162,10 +162,10 @@ export class MDFImportManager {
     } catch (error: any) {
       // Handle common errors
       if (error.message?.includes('already exists')) {
-        throw new DatabaseError(`Database '${databaseName}' already exists`);
+        throw new DatabaseConnectionError(`Database '${databaseName}' already exists`);
       }
       if (error.message?.includes('access denied') || error.message?.includes('permission')) {
-        throw new DatabaseError(
+        throw new DatabaseConnectionError(
           `Permission denied. SQL Server service account needs read access to: ${mdfPath}`
         );
       }
@@ -354,7 +354,7 @@ export class MDFImportManager {
     } = {}
   ): Promise<void> {
     if (!fs.existsSync(backupPath)) {
-      throw new DatabaseError(`Backup file not found: ${backupPath}`);
+      throw new DatabaseConnectionError(`Backup file not found: ${backupPath}`);
     }
 
     const targetDbName = databaseName || this.extractDatabaseName(backupPath);
@@ -392,7 +392,7 @@ export class MDFImportManager {
     logFileSize?: number;
   }> {
     if (!fs.existsSync(mdfPath)) {
-      throw new DatabaseError(`MDF file not found: ${mdfPath}`);
+      throw new DatabaseConnectionError(`MDF file not found: ${mdfPath}`);
     }
 
     const databaseName = this.extractDatabaseName(mdfPath);

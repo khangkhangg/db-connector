@@ -8,9 +8,9 @@ import { BaseDatabaseConnector } from '../connectors/base-connector';
 import { MSSQLConnector } from '../connectors/mssql-connector';
 import { MySQLConnector } from '../connectors/mysql-connector';
 import { PostgreSQLConnector } from '../connectors/postgresql-connector';
-import { AuditLogger } from '../audit/audit-logger';
-import { Logger } from '../utils/logger';
-import { DatabaseError } from '../utils/error-handler';
+import { AuditLogger } from '../observability/audit-logger';
+import { createLogger } from '../utils/logger';
+import { DatabaseConnectionError } from '../utils/error-handler';
 import {
   SyncConfig,
   SyncDatabaseConfig,
@@ -96,7 +96,7 @@ export class DataSyncManager extends EventEmitter {
       });
     } catch (error) {
       this.logger.error('Failed to initialize sync', { error });
-      throw new DatabaseError(`Sync initialization failed: ${error}`);
+      throw new DatabaseConnectionError(`Sync initialization failed: ${error}`);
     }
   }
 
@@ -121,7 +121,7 @@ export class DataSyncManager extends EventEmitter {
       case DatabaseType.PostgreSQL:
         return new PostgreSQLConnector(connectorConfig);
       default:
-        throw new DatabaseError(`Unsupported database type: ${config.type}`);
+        throw new DatabaseConnectionError(`Unsupported database type: ${config.type}`);
     }
   }
 
@@ -130,7 +130,7 @@ export class DataSyncManager extends EventEmitter {
    */
   async sync(): Promise<SyncSessionResult> {
     if (this.isRunning) {
-      throw new DatabaseError('Sync is already running');
+      throw new DatabaseConnectionError('Sync is already running');
     }
 
     this.isRunning = true;
@@ -253,7 +253,7 @@ export class DataSyncManager extends EventEmitter {
       );
 
       if (!primaryKey || primaryKey.length === 0) {
-        throw new DatabaseError(
+        throw new DatabaseConnectionError(
           `No primary key defined for table ${sourceTable}`
         );
       }
@@ -556,7 +556,7 @@ export class DataSyncManager extends EventEmitter {
 
       case ConflictStrategy.Manual:
         this.logger.error('Manual conflict resolution required', { conflict });
-        throw new DatabaseError(
+        throw new DatabaseConnectionError(
           `Manual conflict resolution required for ${conflict.tableName}`
         );
 
@@ -766,7 +766,7 @@ export class DataSyncManager extends EventEmitter {
    */
   async startContinuousSync(): Promise<void> {
     if (this.config.mode !== SyncMode.Continuous) {
-      throw new DatabaseError('Sync mode must be "continuous"');
+      throw new DatabaseConnectionError('Sync mode must be "continuous"');
     }
 
     const intervalMs = this.config.syncIntervalMs || 60000; // Default 1 minute
