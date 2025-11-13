@@ -177,6 +177,22 @@ export class APIServer {
   async start(): Promise<void> {
     return new Promise((resolve) => {
       this.server = this.app.listen(this.config.port, this.config.host, () => {
+        const startupMessage = `
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║  🚀 DB Schema Mapper Connector - API Server Started       ║
+║                                                            ║
+║  URL: http://localhost:${this.config.port}                          ║
+║  Host: ${this.config.host}                                   ║
+║  Auth: ${this.config.enableAuth ? 'Enabled' : 'Disabled'}                                   ║
+║  Rate Limit: ${this.config.enableRateLimit ? 'Enabled' : 'Disabled'}                            ║
+║                                                            ║
+║  📖 Open http://localhost:${this.config.port} in your browser        ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+        `;
+        console.log(startupMessage);
+
         logger.info('API Server started', {
           host: this.config.host,
           port: this.config.port,
