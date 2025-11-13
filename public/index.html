@@ -512,8 +512,20 @@
     <div class="main-layout">
         <div class="container">
             <div class="header">
-            <h1>🗄️ DB Schema Mapper Connector</h1>
-            <p>Connect, Compare & Synchronize Database Schemas</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🗄️ DB Schema Mapper Connector</h1>
+                    <p>Connect, Compare & Synchronize Database Schemas</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <a href="http://buymeacoffee.com/dkhang" target="_blank" class="btn btn-secondary" style="text-decoration: none; padding: 8px 16px; font-size: 13px;">
+                        ☕ Buy Me a Coffee
+                    </a>
+                    <button class="btn btn-secondary" onclick="showSettingsModal()" style="padding: 8px 16px; font-size: 13px;">
+                        ⚙️ Settings
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="alert alert-success" id="successAlert"></div>
@@ -726,6 +738,64 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <div style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #333;">
+                ⚙️ Notification Settings
+            </div>
+            <div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; margin-bottom: 5px;">
+                        <input type="checkbox" id="enableSlackNotifications">
+                        <span>Enable Slack Notifications</span>
+                    </label>
+                    <small style="color: #666; font-size: 12px; margin-left: 24px;">Send notifications to Slack when there's activity in the Live Console Log</small>
+                </div>
+
+                <div style="margin-left: 24px; margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">Slack Webhook URL:</label>
+                    <input type="text" id="slackWebhookUrl" placeholder="https://hooks.slack.com/services/..." style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                    <small style="color: #666; font-size: 11px;">Get your webhook URL from Slack App settings</small>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; margin-bottom: 5px;">
+                        <input type="checkbox" id="enableTelegramNotifications">
+                        <span>Enable Telegram Notifications</span>
+                    </label>
+                    <small style="color: #666; font-size: 12px; margin-left: 24px;">Send notifications to Telegram when there's activity in the Live Console Log</small>
+                </div>
+
+                <div style="margin-left: 24px; margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">Telegram Bot Token:</label>
+                    <input type="text" id="telegramBotToken" placeholder="123456:ABC-DEF1234..." style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                    <small style="color: #666; font-size: 11px;">Get your bot token from @BotFather</small>
+                </div>
+
+                <div style="margin-left: 24px; margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">Telegram Chat ID:</label>
+                    <input type="text" id="telegramChatId" placeholder="-1001234567890" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                    <small style="color: #666; font-size: 11px;">Your chat ID or channel ID</small>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">Notification Filter:</label>
+                    <select id="notificationFilter" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                        <option value="all">All Activities</option>
+                        <option value="errors">Errors Only</option>
+                        <option value="success">Success & Errors</option>
+                        <option value="important">Important Only (Errors, Success, Warnings)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = 'http://localhost:1001/api';
         let sourceConnected = false;
@@ -733,6 +803,27 @@
         let discoveredInstances = [];
         let sourceConnectionId = null;
         let targetConnectionId = null;
+
+        // Notification settings
+        let notificationSettings = {
+            enableSlack: false,
+            slackWebhookUrl: '',
+            enableTelegram: false,
+            telegramBotToken: '',
+            telegramChatId: '',
+            filter: 'important'
+        };
+
+        // Load notification settings from localStorage
+        function loadNotificationSettings() {
+            const saved = localStorage.getItem('notificationSettings');
+            if (saved) {
+                notificationSettings = JSON.parse(saved);
+            }
+        }
+
+        // Initialize settings on page load
+        loadNotificationSettings();
 
         // Logging functions
         function log(message, type = 'info') {
@@ -752,6 +843,100 @@
             while (logContent.children.length > 100) {
                 logContent.removeChild(logContent.firstChild);
             }
+
+            // Send notifications based on settings and filter
+            sendNotification(message, type, timestamp);
+        }
+
+        // Send notification to Slack/Telegram
+        async function sendNotification(message, type, timestamp) {
+            // Check if should send based on filter
+            const filter = notificationSettings.filter;
+            let shouldSend = false;
+
+            if (filter === 'all') {
+                shouldSend = true;
+            } else if (filter === 'errors' && type === 'error') {
+                shouldSend = true;
+            } else if (filter === 'success' && (type === 'error' || type === 'success')) {
+                shouldSend = true;
+            } else if (filter === 'important' && (type === 'error' || type === 'success' || type === 'request')) {
+                shouldSend = true;
+            }
+
+            if (!shouldSend) return;
+
+            const emoji = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'request' ? '🔵' : 'ℹ️';
+            const notificationText = `${emoji} *[${type.toUpperCase()}]* [${timestamp}]\n${message}`;
+
+            // Send to Slack
+            if (notificationSettings.enableSlack && notificationSettings.slackWebhookUrl) {
+                try {
+                    await fetch(notificationSettings.slackWebhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: notificationText,
+                            username: 'DB Schema Mapper',
+                            icon_emoji: ':database:'
+                        })
+                    });
+                } catch (error) {
+                    console.error('Failed to send Slack notification:', error);
+                }
+            }
+
+            // Send to Telegram
+            if (notificationSettings.enableTelegram && notificationSettings.telegramBotToken && notificationSettings.telegramChatId) {
+                try {
+                    await fetch(`https://api.telegram.org/bot${notificationSettings.telegramBotToken}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: notificationSettings.telegramChatId,
+                            text: notificationText,
+                            parse_mode: 'Markdown'
+                        })
+                    });
+                } catch (error) {
+                    console.error('Failed to send Telegram notification:', error);
+                }
+            }
+        }
+
+        // Settings modal functions
+        function showSettingsModal() {
+            // Load current settings into modal
+            document.getElementById('enableSlackNotifications').checked = notificationSettings.enableSlack;
+            document.getElementById('slackWebhookUrl').value = notificationSettings.slackWebhookUrl;
+            document.getElementById('enableTelegramNotifications').checked = notificationSettings.enableTelegram;
+            document.getElementById('telegramBotToken').value = notificationSettings.telegramBotToken;
+            document.getElementById('telegramChatId').value = notificationSettings.telegramChatId;
+            document.getElementById('notificationFilter').value = notificationSettings.filter;
+
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            // Save settings from modal
+            notificationSettings = {
+                enableSlack: document.getElementById('enableSlackNotifications').checked,
+                slackWebhookUrl: document.getElementById('slackWebhookUrl').value,
+                enableTelegram: document.getElementById('enableTelegramNotifications').checked,
+                telegramBotToken: document.getElementById('telegramBotToken').value,
+                telegramChatId: document.getElementById('telegramChatId').value,
+                filter: document.getElementById('notificationFilter').value
+            };
+
+            // Save to localStorage
+            localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+
+            closeSettingsModal();
+            log('Notification settings saved successfully', 'success');
         }
 
         function logRequest(method, url, body) {
