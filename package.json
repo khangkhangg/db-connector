@@ -15,7 +15,9 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "discover": "ts-node src/cli/discover-command.ts",
+    "discover:examples": "ts-node examples/auto-discover-mssql.ts"
   },
   "keywords": [
     "database",

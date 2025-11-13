@@ -10,6 +10,7 @@
 
 ### Core Capabilities
 
+- ✅ **Auto-Discovery**: Automatically detect and connect to local SQL Server instances using Windows Authentication (like SSMS)
 - ✅ **Schema Management**: Read, compare, and map database schemas between MySQL, MSSQL, and PostgreSQL
 - ✅ **Data Synchronization**: Bi-directional and unidirectional data sync with selective table/column support
 - ✅ **Migration System**: Auto-generate migrations with rollback support and drift detection
@@ -19,6 +20,7 @@
 - ✅ **CLI**: Comprehensive command-line interface for all operations
 - ✅ **Webhooks**: Real-time event notifications with signature verification
 - ✅ **Production Ready**: Docker support, Kubernetes manifests, CI/CD pipelines
+- ✅ **MDF Import**: Direct import of SQL Server MDF database files
 
 ### Observability & Monitoring
 
@@ -101,6 +103,10 @@ npx db-connector --help
 
 ## Documentation
 
+- **[Auto-Discovery Guide](./docs/AUTO_DISCOVERY.md)**: Automatically discover and connect to local SQL Server instances
+- **[MDF Import Guide](./docs/MDF_IMPORT.md)**: Import SQL Server MDF database files
+- **[Sync Alerts & PHI](./docs/SYNC_ALERTS_PHI.md)**: Data sync conflict alerts with PHI protection
+- **[Alert System](./docs/ALERTS.md)**: Multi-channel alerting (Slack, Telegram, Discord, etc.)
 - **[API Documentation](./docs/API.md)**: Complete REST API and CLI reference
 - **[Data Sync Guide](./docs/DATA_SYNC.md)**: Data synchronization setup, configuration, and usage
 - **[Deployment Guide](./docs/DEPLOYMENT.md)**: Production deployment on Docker, Kubernetes, AWS, Azure, GCP
@@ -110,6 +116,43 @@ npx db-connector --help
 - **[Production Checklist](./docs/PRODUCTION_CHECKLIST.md)**: Pre and post-deployment checklist
 
 ## Usage Examples
+
+### Auto-Discovery (SQL Server)
+
+Discover and connect to local SQL Server instances automatically (like SQL Server Management Studio):
+
+```bash
+# Interactive discovery - lists all SQL Server instances and lets you connect
+npm run discover
+```
+
+In code:
+
+```typescript
+import { MSSQLDiscoveryManager } from './src/discovery/mssql-discovery';
+
+// Auto-connect to any available local SQL Server instance
+const discovery = new MSSQLDiscoveryManager();
+const result = await discovery.autoConnectLocal();
+
+if (result.success && result.pool) {
+  console.log('Connected to:', result.instance?.displayName);
+  console.log('Available databases:', result.databases?.length);
+
+  // Use the connection
+  const data = await result.pool.request().query('SELECT * FROM MyTable');
+
+  await result.pool.close();
+}
+```
+
+**Key Features:**
+- 🔍 Automatically discovers all local SQL Server instances
+- 🔐 Uses Windows Authentication (no password needed)
+- ✅ Same experience as SQL Server Management Studio
+- 📊 Lists all available databases automatically
+
+See [Auto-Discovery Documentation](./docs/AUTO_DISCOVERY.md) for more details.
 
 ### REST API
 
