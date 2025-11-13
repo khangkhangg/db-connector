@@ -47,10 +47,10 @@ export interface MDFImportResult {
  * MDF File Import Manager
  */
 export class MDFImportManager {
-  private logger: Logger;
+  private logger;
 
   constructor(private sqlServerConnector: MSSQLConnector) {
-    this.logger = new Logger('MDFImportManager');
+    this.logger = createLogger('MDFImportManager');
   }
 
   /**

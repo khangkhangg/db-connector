@@ -34,7 +34,7 @@ import { DatabaseType } from '../schema/types';
 export class DataSyncManager extends EventEmitter {
   private sourceConnector!: BaseDatabaseConnector;
   private targetConnector!: BaseDatabaseConnector;
-  private logger: Logger;
+  private logger;
   private auditLogger?: AuditLogger;
   private config!: SyncConfig;
   private status: SyncStatus;
@@ -43,7 +43,7 @@ export class DataSyncManager extends EventEmitter {
 
   constructor(auditLogger?: AuditLogger) {
     super();
-    this.logger = new Logger('DataSyncManager');
+    this.logger = createLogger('DataSyncManager');
     this.auditLogger = auditLogger;
     this.status = {
       syncId: '',

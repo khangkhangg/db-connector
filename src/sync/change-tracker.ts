@@ -60,7 +60,7 @@ interface SyncCheckpoint {
  */
 export class ChangeTracker extends EventEmitter {
   private config: ChangeTrackerConfig;
-  private logger: Logger;
+  private logger;
   private checkpoints: Map<string, SyncCheckpoint>;
   private pollingInterval?: NodeJS.Timeout;
   private isTracking: boolean = false;
@@ -68,7 +68,7 @@ export class ChangeTracker extends EventEmitter {
   constructor(config: ChangeTrackerConfig) {
     super();
     this.config = config;
-    this.logger = new Logger('ChangeTracker');
+    this.logger = createLogger('ChangeTracker');
     this.checkpoints = new Map();
   }
 
