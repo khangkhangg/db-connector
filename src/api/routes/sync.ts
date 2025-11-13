@@ -6,6 +6,9 @@ import { Router, Request, Response } from 'express';
 import { DataSyncManager } from '../../sync/data-sync-manager';
 import { ChangeTracker, ChangeTrackingMethod } from '../../sync/change-tracker';
 import { SyncConfig, SyncDirection, SyncMode, ConflictStrategy } from '../../sync/types';
+import { BidirectionalSync, SyncTableConfig } from '../../sync/bidirectional-sync';
+import { createAndConnectConnector } from '../../connectors/connector-factory';
+import { DatabaseType } from '../../schema/types';
 // import { authenticate } from '../middleware/auth'; // Not used in local client mode
 import { createLogger } from '../../utils/logger';
 
@@ -451,5 +454,119 @@ router.get('/templates', noAuth, async (req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * POST /api/sync/bidirectional
+ * Execute bi-directional sync between two databases
+ */
+router.post('/bidirectional', noAuth, async (req: Request, res: Response) => {
+  try {
+    const {
+      source,
+      target,
+      tables,
+      lastSyncTime
+    } = req.body;
+
+    // Validate request
+    if (!source || !target) {
+      return res.status(400).json({
+        error: 'Missing source or target database configuration'
+      });
+    }
+
+    if (!tables || !Array.isArray(tables) || tables.length === 0) {
+      return res.status(400).json({
+        error: 'At least one table configuration is required'
+      });
+    }
+
+    logger.info('Starting bidirectional sync', {
+      sourceType: source.type,
+      targetType: target.type,
+      tableCount: tables.length
+    });
+
+    // Normalize database types
+    const sourceType = normalizeDatabaseType(source.type);
+    const targetType = normalizeDatabaseType(target.type);
+
+    // Connect to source database
+    const sourceConnector = await createAndConnectConnector(sourceType, {
+      host: source.host,
+      port: parseInt(source.port),
+      database: source.database,
+      user: source.user,
+      password: source.password
+    });
+
+    // Connect to target database
+    const targetConnector = await createAndConnectConnector(targetType, {
+      host: target.host,
+      port: parseInt(target.port),
+      database: target.database,
+      user: target.user,
+      password: target.password
+    });
+
+    try {
+      // Create bidirectional sync instance
+      const biSync = new BidirectionalSync(
+        sourceConnector,
+        targetConnector,
+        sourceType,
+        targetType
+      );
+
+      // Parse table configurations
+      const tableConfigs: SyncTableConfig[] = tables.map((t: any) => ({
+        sourceTable: t.sourceTable,
+        targetTable: t.targetTable,
+        primaryKey: t.primaryKey || 'id',
+        conflictStrategy: t.conflictStrategy || 'newest-wins',
+        columnMapping: t.columnMapping,
+        syncDirection: t.syncDirection || 'both'
+      }));
+
+      // Execute sync
+      const syncResult = await biSync.sync(
+        tableConfigs,
+        lastSyncTime ? new Date(lastSyncTime) : undefined
+      );
+
+      res.json({
+        success: syncResult.success,
+        result: syncResult,
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      await sourceConnector.disconnect();
+      await targetConnector.disconnect();
+    }
+  } catch (error) {
+    logger.error('Bidirectional sync failed', { error });
+    res.status(500).json({
+      error: 'Bidirectional sync failed',
+      details: String(error)
+    });
+  }
+});
+
+/**
+ * Helper function to normalize database type
+ */
+function normalizeDatabaseType(type: string): DatabaseType {
+  const normalizedType = type.toLowerCase();
+
+  if (normalizedType === 'mssql') {
+    return DatabaseType.MSSQL;
+  } else if (normalizedType === 'mysql') {
+    return DatabaseType.MySQL;
+  } else if (normalizedType === 'postgresql') {
+    return DatabaseType.PostgreSQL;
+  }
+
+  throw new Error(`Unsupported database type: ${type}`);
+}
 
 export default router;

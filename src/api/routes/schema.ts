@@ -198,7 +198,7 @@ router.post('/generate-ddl', asyncHandler(async (req: AuthenticatedRequest, res:
  * POST /api/schema/export-data
  */
 router.post('/export-data', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const { type, host, port, database, user, password, tables, limit } = req.body;
+  const { type, host, port, database, user, password, tables, limit, dateColumn, startDate, endDate } = req.body;
 
   if (!type || !host || !port || !database) {
     throw createAPIError('Missing required fields', 400);
@@ -254,10 +254,27 @@ router.post('/export-data', asyncHandler(async (req: AuthenticatedRequest, res: 
 
         // Query all data from the table with limit (database-specific syntax)
         let query: string;
+        let whereClause = '';
+
+        // Add date range filter if provided
+        if (dateColumn && (startDate || endDate)) {
+          const conditions: string[] = [];
+          const escapedDateCol = escapeSqlIdentifier(dateColumn, dbType);
+
+          if (startDate) {
+            conditions.push(`${escapedDateCol} >= '${startDate}'`);
+          }
+          if (endDate) {
+            conditions.push(`${escapedDateCol} <= '${endDate}'`);
+          }
+
+          whereClause = ` WHERE ${conditions.join(' AND ')}`;
+        }
+
         if (dbType === DatabaseType.MSSQL) {
-          query = `SELECT TOP ${recordLimit} * FROM ${escapeSqlIdentifier(tableName, dbType)}`;
+          query = `SELECT TOP ${recordLimit} * FROM ${escapeSqlIdentifier(tableName, dbType)}${whereClause}`;
         } else {
-          query = `SELECT * FROM ${escapeSqlIdentifier(tableName, dbType)} LIMIT ${recordLimit}`;
+          query = `SELECT * FROM ${escapeSqlIdentifier(tableName, dbType)}${whereClause} LIMIT ${recordLimit}`;
         }
 
         const rows = await connector.executeQuery(query);

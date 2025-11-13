@@ -16,6 +16,8 @@ import monitoringRoutes from './routes/monitoring';
 import auditRoutes from './routes/audit';
 import syncRoutes from './routes/sync';
 import connectionsRoutes from './routes/connections';
+import mobileRoutes from './routes/mobile';
+import { ChangeNotificationWebSocketServer } from './websocket-server';
 
 const logger = createLogger('APIServer');
 
@@ -27,12 +29,14 @@ export interface ServerConfig {
   rateLimitWindowMs?: number;
   rateLimitMaxRequests?: number;
   corsOrigins?: string[];
+  enableWebSocket?: boolean;
 }
 
 export class APIServer {
   private app: express.Application;
   private config: Required<ServerConfig>;
   private server: any;
+  private wsServer?: ChangeNotificationWebSocketServer;
 
   constructor(config: ServerConfig = {}) {
     this.config = {
@@ -42,7 +46,8 @@ export class APIServer {
       enableRateLimit: config.enableRateLimit ?? true,
       rateLimitWindowMs: config.rateLimitWindowMs || 15 * 60 * 1000, // 15 minutes
       rateLimitMaxRequests: config.rateLimitMaxRequests || 100,
-      corsOrigins: config.corsOrigins || ['*']
+      corsOrigins: config.corsOrigins || ['*'],
+      enableWebSocket: config.enableWebSocket ?? true
     };
 
     this.app = express();
@@ -141,7 +146,8 @@ export class APIServer {
           monitoring: '/api/monitoring',
           audit: '/api/audit',
           sync: '/api/sync',
-          connections: '/api/connections'
+          connections: '/api/connections',
+          mobile: '/api/mobile'
         }
       });
     });
@@ -155,6 +161,7 @@ export class APIServer {
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/audit', auditRoutes);
     this.app.use('/api/sync', syncRoutes);
+    this.app.use('/api/mobile', mobileRoutes);
 
     // 404 handler
     this.app.use((req: Request, res: Response) => {
@@ -178,15 +185,23 @@ export class APIServer {
   async start(): Promise<void> {
     return new Promise((resolve) => {
       this.server = this.app.listen(this.config.port, this.config.host, () => {
+        // Initialize WebSocket server if enabled
+        if (this.config.enableWebSocket) {
+          this.wsServer = new ChangeNotificationWebSocketServer(this.server);
+          logger.info('WebSocket server enabled', { path: '/ws' });
+        }
+
         const startupMessage = `
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
 ║  🚀 DB Schema Mapper Connector - API Server Started       ║
 ║                                                            ║
 ║  URL: http://localhost:${this.config.port}                          ║
+║  WebSocket: ws://localhost:${this.config.port}/ws                   ║
 ║  Host: ${this.config.host}                                   ║
 ║  Auth: ${this.config.enableAuth ? 'Enabled' : 'Disabled'}                                   ║
 ║  Rate Limit: ${this.config.enableRateLimit ? 'Enabled' : 'Disabled'}                            ║
+║  WebSocket: ${this.config.enableWebSocket ? 'Enabled' : 'Disabled'}                            ║
 ║                                                            ║
 ║  📖 Open http://localhost:${this.config.port} in your browser        ║
 ║                                                            ║
@@ -198,7 +213,8 @@ export class APIServer {
           host: this.config.host,
           port: this.config.port,
           auth: this.config.enableAuth,
-          rateLimit: this.config.enableRateLimit
+          rateLimit: this.config.enableRateLimit,
+          webSocket: this.config.enableWebSocket
         });
         resolve();
       });
@@ -209,6 +225,11 @@ export class APIServer {
    * Stop server
    */
   async stop(): Promise<void> {
+    // Shutdown WebSocket server first
+    if (this.wsServer) {
+      this.wsServer.shutdown();
+    }
+
     return new Promise((resolve, reject) => {
       if (this.server) {
         this.server.close((err: Error) => {
@@ -231,6 +252,13 @@ export class APIServer {
    */
   getApp(): express.Application {
     return this.app;
+  }
+
+  /**
+   * Get WebSocket server instance
+   */
+  getWebSocketServer(): ChangeNotificationWebSocketServer | undefined {
+    return this.wsServer;
   }
 }
 
