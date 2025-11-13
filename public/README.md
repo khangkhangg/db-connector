@@ -51,12 +51,12 @@ npm run client
 ║                                                            ║
 ║  🚀 DB Schema Mapper Connector - API Server Started       ║
 ║                                                            ║
-║  URL: http://localhost:3000                          ║
+║  URL: http://localhost:1001                          ║
 ║  Host: 0.0.0.0                                   ║
 ║  Auth: Disabled                                   ║
 ║  Rate Limit: Enabled                            ║
 ║                                                            ║
-║  📖 Open http://localhost:3000 in your browser        ║
+║  📖 Open http://localhost:1001 in your browser        ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 ```
@@ -66,7 +66,7 @@ npm run client
 - To run in background: Add `&` at the end: `npm run client &`
 
 **What this does:**
-- Starts the web server on port 3000
+- Starts the web server on port 1001
 - Disables authentication for local use (Windows Auth still works!)
 - Enables auto-discovery features
 - Opens the connection manager UI
@@ -80,7 +80,7 @@ npm run client:build
 ### 3. Open Your Browser
 
 ```
-http://localhost:3000
+http://localhost:1001
 ```
 
 You'll see the **Connection Manager** interface with three main panels:
@@ -496,7 +496,7 @@ Shows during operations, auto-dismisses.
 **Scenario**: You have SQL Server Express installed on your Windows PC.
 
 **Steps**:
-1. Open `http://localhost:3000`
+1. Open `http://localhost:1001`
 2. Click **"Discover Local SQL Server Instances"**
 3. Wait 2-3 seconds for scan to complete
 4. Click on **"localhost\SQLEXPRESS"** in the instance list
@@ -749,12 +749,12 @@ The UI communicates with these REST API endpoints:
 **Solutions**:
 1. Verify server is running:
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:1001/health
    ```
    Should return: `{"status":"healthy",...}`
 
 2. Check correct port:
-   - Default: `http://localhost:3000`
+   - Default: `http://localhost:1001`
    - Custom: Check `.env` file for `API_PORT`
 
 3. Clear browser cache:
@@ -1010,7 +1010,7 @@ function getConnectionConfig() {
 
 1. **Check Health Endpoint**:
    ```
-   http://localhost:3000/health
+   http://localhost:1001/health
    ```
 
 2. **Review Logs**:
@@ -1021,10 +1021,10 @@ function getConnectionConfig() {
 3. **Test API Directly**:
    ```bash
    # Test discovery
-   curl -X POST http://localhost:3000/api/connections/discover
+   curl -X POST http://localhost:1001/api/connections/discover
 
    # Test connection
-   curl -X POST http://localhost:3000/api/connections/test \
+   curl -X POST http://localhost:1001/api/connections/test \
      -H "Content-Type: application/json" \
      -d '{"type":"MSSQL","server":"localhost","database":"master","useWindowsAuth":true}'
    ```
@@ -1056,7 +1056,7 @@ The DB Connector Web UI provides a **powerful, user-friendly interface** for man
 **Start now**:
 ```bash
 npm run client
-# Open http://localhost:3000
+# Open http://localhost:1001
 ```
 
 Happy connecting! 🚀

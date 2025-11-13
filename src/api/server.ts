@@ -36,7 +36,7 @@ export class APIServer {
 
   constructor(config: ServerConfig = {}) {
     this.config = {
-      port: config.port || parseInt(process.env.API_PORT || '3000'),
+      port: config.port || parseInt(process.env.API_PORT || '1001'),
       host: config.host || process.env.API_HOST || '0.0.0.0',
       enableAuth: config.enableAuth ?? (process.env.API_ENABLE_AUTH !== 'false'),
       enableRateLimit: config.enableRateLimit ?? true,
