@@ -45,15 +45,29 @@ npm run client
 **Expected output:**
 ```
 > db-schema-mapper-connector@0.1.0 client
-> API_ENABLE_AUTH=false ts-node src/index.ts
+> API_ENABLE_AUTH=false ts-node --transpile-only src/api/server.ts
 
-[info] APIServer: Server started on http://0.0.0.0:3000
-[info] APIServer: UI available at http://localhost:3000
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║  🚀 DB Schema Mapper Connector - API Server Started       ║
+║                                                            ║
+║  URL: http://localhost:3000                          ║
+║  Host: 0.0.0.0                                   ║
+║  Auth: Disabled                                   ║
+║  Rate Limit: Enabled                            ║
+║                                                            ║
+║  📖 Open http://localhost:3000 in your browser        ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
 ```
+
+**⚠️ IMPORTANT:** Keep this terminal window open! The server runs in the foreground.
+- To stop the server: Press `Ctrl+C` in the terminal
+- To run in background: Add `&` at the end: `npm run client &`
 
 **What this does:**
 - Starts the web server on port 3000
-- Disables authentication for local use
+- Disables authentication for local use (Windows Auth still works!)
 - Enables auto-discovery features
 - Opens the connection manager UI
 
