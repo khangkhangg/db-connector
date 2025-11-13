@@ -14,12 +14,41 @@ The DB Connector Web UI is a powerful, user-friendly interface that allows you t
 - ✅ **See connection status** in real-time (success/failure/details)
 - 📊 **Browse databases** and view metadata
 
-## Quick Start (3 Steps)
+## Quick Start (4 Steps)
 
-### 1. Start the Client Application
+### Prerequisites
+
+Make sure you have **Node.js 18+** installed:
+```bash
+node --version  # Should be v18.0.0 or higher
+```
+
+### 1. Install Dependencies
+
+**First time only** - Install all required packages:
+
+```bash
+npm install
+```
+
+This installs `ts-node`, `typescript`, and all other dependencies (~1-2 minutes).
+
+**Common Error Fix:**
+If you see `sh: ts-node: command not found`, you skipped this step. Run `npm install` first!
+
+### 2. Start the Client Application
 
 ```bash
 npm run client
+```
+
+**Expected output:**
+```
+> db-schema-mapper-connector@0.1.0 client
+> API_ENABLE_AUTH=false ts-node src/index.ts
+
+[info] APIServer: Server started on http://0.0.0.0:3000
+[info] APIServer: UI available at http://localhost:3000
 ```
 
 **What this does:**
@@ -28,7 +57,13 @@ npm run client
 - Enables auto-discovery features
 - Opens the connection manager UI
 
-### 2. Open Your Browser
+**Alternative (if ts-node issues):**
+```bash
+npm run build
+npm run client:build
+```
+
+### 3. Open Your Browser
 
 ```
 http://localhost:3000
@@ -39,7 +74,7 @@ You'll see the **Connection Manager** interface with three main panels:
 - **Right**: Manual Connection (for local or remote databases)
 - **Bottom**: Saved Connections (your connection profiles)
 
-### 3. Connect to a Database
+### 4. Connect to a Database
 
 **Option A - Local SQL Server (easiest):**
 1. Click "Discover Local SQL Server Instances"
