@@ -55,12 +55,13 @@ export class APIServer {
    * Setup middleware
    */
   private setupMiddleware(): void {
-    // Security headers (allow inline scripts for UI)
+    // Security headers (allow inline scripts and event handlers for UI)
     this.app.use(helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrcAttr: ["'unsafe-inline'"], // Allow onclick and other inline event handlers
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", "data:"],
         },
