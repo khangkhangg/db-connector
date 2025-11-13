@@ -755,12 +755,57 @@
         }
 
         function logRequest(method, url, body) {
-            log(`${method} ${url}${body ? '\nBody: ' + JSON.stringify(body, null, 2) : ''}`, 'request');
+            if (!body) {
+                log(`${method} ${url}`, 'request');
+                return;
+            }
+
+            // Don't log full schema in request body - it's too large
+            if (body.schema1 || body.schema2 || body.oldSchema || body.newSchema) {
+                const schema1Info = body.schema1 ? `schema1: ${body.schema1.tables?.length || 0} tables` : '';
+                const schema2Info = body.schema2 ? `schema2: ${body.schema2.tables?.length || 0} tables` : '';
+                const oldSchemaInfo = body.oldSchema ? `oldSchema: ${body.oldSchema.tables?.length || 0} tables` : '';
+                const newSchemaInfo = body.newSchema ? `newSchema: ${body.newSchema.tables?.length || 0} tables` : '';
+                const schemaInfo = [schema1Info, schema2Info, oldSchemaInfo, newSchemaInfo].filter(s => s).join(', ');
+                log(`${method} ${url}\nBody: {${schemaInfo}}`, 'request');
+                return;
+            }
+
+            // For other requests, check size and truncate if too large
+            const bodyStr = JSON.stringify(body, null, 2);
+            const maxSize = 500;
+
+            if (bodyStr.length > maxSize) {
+                const truncated = bodyStr.substring(0, maxSize) + '\n... (truncated)';
+                log(`${method} ${url}\nBody: ${truncated}`, 'request');
+            } else {
+                log(`${method} ${url}\nBody: ${bodyStr}`, 'request');
+            }
         }
 
         function logResponse(status, data) {
             const type = status >= 200 && status < 300 ? 'success' : 'error';
-            log(`Response ${status}: ${JSON.stringify(data, null, 2)}`, type);
+
+            // Don't log full schema JSON - it's too large and makes UI unusable
+            if (data && data.schema) {
+                const tableCount = data.schema.tables ? data.schema.tables.length : 0;
+                const totalColumns = data.schema.tables
+                    ? data.schema.tables.reduce((sum, t) => sum + (t.columns ? t.columns.length : 0), 0)
+                    : 0;
+                log(`Response ${status}: Schema loaded successfully (${tableCount} tables, ${totalColumns} columns)`, type);
+                return;
+            }
+
+            // For other responses, check size and truncate if too large
+            const jsonStr = JSON.stringify(data, null, 2);
+            const maxSize = 1000; // Max characters to show
+
+            if (jsonStr.length > maxSize) {
+                const truncated = jsonStr.substring(0, maxSize) + '\n... (truncated, response too large)';
+                log(`Response ${status}: ${truncated}`, type);
+            } else {
+                log(`Response ${status}: ${jsonStr}`, type);
+            }
         }
 
         function logError(message, error) {
@@ -1168,6 +1213,37 @@
             showSuccess('Visual Schema Mapper opened in new tab!');
         }
 
+        // Format schema for display (summary, not full JSON)
+        function formatSchemaDisplay(schema) {
+            if (!schema || !schema.tables) return 'No schema data';
+
+            let output = `Database: ${schema.database || 'N/A'}\n`;
+            output += `Total Tables: ${schema.tables.length}\n`;
+            output += `Total Columns: ${schema.tables.reduce((sum, t) => sum + (t.columns?.length || 0), 0)}\n\n`;
+            output += '═'.repeat(80) + '\n\n';
+
+            schema.tables.forEach(table => {
+                output += `📋 ${table.name}\n`;
+                output += `   Columns: ${table.columns?.length || 0}\n`;
+
+                if (table.columns && table.columns.length > 0) {
+                    table.columns.forEach(col => {
+                        const badges = [];
+                        if (col.isPrimaryKey) badges.push('PK');
+                        if (col.isForeignKey) badges.push('FK');
+                        if (col.nullable) badges.push('NULL');
+
+                        const badgeStr = badges.length > 0 ? ` [${badges.join(', ')}]` : '';
+                        output += `      • ${col.name}: ${col.dataType}${badgeStr}\n`;
+                    });
+                }
+
+                output += '\n';
+            });
+
+            return output;
+        }
+
         // View schema
         async function viewSchema(target) {
             const config = getConnectionConfig(target);
@@ -1188,7 +1264,8 @@
                 logResponse(response.status, data);
 
                 if (data.success) {
-                    displayResults(`${target.toUpperCase()} SCHEMA:\n\n` + JSON.stringify(data, null, 2));
+                    // Display formatted schema summary, not full JSON
+                    displayResults(`${target.toUpperCase()} SCHEMA:\n\n` + formatSchemaDisplay(data.schema));
                     showSuccess(`Schema loaded: ${data.metadata.tables} tables`);
                     log(`Schema read successful: ${data.metadata.tables} tables`, 'success');
                 } else {
@@ -1254,7 +1331,39 @@
                 logResponse(compareResponse.status, compareData);
 
                 if (compareData.success) {
-                    displayResults('SCHEMA COMPARISON:\n\n' + JSON.stringify(compareData, null, 2));
+                    // Format comparison results for display
+                    let output = 'SCHEMA COMPARISON RESULTS\n';
+                    output += '═'.repeat(80) + '\n\n';
+
+                    const diff = compareData.differences || {};
+
+                    output += `Summary:\n`;
+                    output += `  • Tables in Source only: ${diff.missingInSchema2?.length || 0}\n`;
+                    output += `  • Tables in Target only: ${diff.missingInSchema1?.length || 0}\n`;
+                    output += `  • Tables with differences: ${diff.differentTables?.length || 0}\n`;
+                    output += `  • Identical tables: ${(diff.identical?.length || 0)}\n\n`;
+
+                    if (diff.missingInSchema2 && diff.missingInSchema2.length > 0) {
+                        output += `\n📥 Tables only in SOURCE (${diff.missingInSchema2.length}):\n`;
+                        diff.missingInSchema2.forEach(t => output += `   • ${t}\n`);
+                    }
+
+                    if (diff.missingInSchema1 && diff.missingInSchema1.length > 0) {
+                        output += `\n📤 Tables only in TARGET (${diff.missingInSchema1.length}):\n`;
+                        diff.missingInSchema1.forEach(t => output += `   • ${t}\n`);
+                    }
+
+                    if (diff.differentTables && diff.differentTables.length > 0) {
+                        output += `\n⚠️  Tables with DIFFERENCES (${diff.differentTables.length}):\n`;
+                        diff.differentTables.forEach(t => output += `   • ${t}\n`);
+                    }
+
+                    if (diff.identical && diff.identical.length > 0) {
+                        output += `\n✅ Identical tables (${diff.identical.length}):\n`;
+                        diff.identical.forEach(t => output += `   • ${t}\n`);
+                    }
+
+                    displayResults(output);
                     showSuccess('Schemas compared successfully');
                     log('Schema comparison completed', 'success');
                 } else {
@@ -1301,7 +1410,27 @@
                 logResponse(response.status, data);
 
                 if (data.success) {
-                    displayResults('SYNC RESULTS:\n\n' + JSON.stringify(data.result, null, 2));
+                    // Format sync results for display
+                    let output = 'DATA SYNCHRONIZATION RESULTS\n';
+                    output += '═'.repeat(80) + '\n\n';
+
+                    const result = data.result || {};
+                    output += `Status: ${result.status || 'Completed'}\n`;
+                    output += `Duration: ${result.duration || 'N/A'}\n`;
+                    output += `Records Synced: ${result.recordsSynced || 0}\n`;
+                    output += `Tables Processed: ${result.tablesProcessed || 0}\n\n`;
+
+                    if (result.errors && result.errors.length > 0) {
+                        output += `\n❌ Errors (${result.errors.length}):\n`;
+                        result.errors.forEach(err => output += `   • ${err}\n`);
+                    }
+
+                    if (result.warnings && result.warnings.length > 0) {
+                        output += `\n⚠️  Warnings (${result.warnings.length}):\n`;
+                        result.warnings.forEach(warn => output += `   • ${warn}\n`);
+                    }
+
+                    displayResults(output);
                     showSuccess('Synchronization completed!');
                     log('Data synchronization completed successfully', 'success');
                 } else {
