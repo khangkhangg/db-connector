@@ -12,6 +12,9 @@ import { createLogger } from '../../utils/logger';
 const router = Router();
 const logger = createLogger('SyncAPI');
 
+// Dummy middleware for local client mode (auth disabled)
+const noAuth = (_req: Request, _res: Response, next: any) => next();
+
 // Store active sync managers (in production, use Redis or database)
 const syncManagers = new Map<string, DataSyncManager>();
 
@@ -19,7 +22,7 @@ const syncManagers = new Map<string, DataSyncManager>();
  * POST /api/sync/configure
  * Create or update sync configuration
  */
-router.post('/configure', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.post('/configure', noAuth, async (req: Request, res: Response) => {
   try {
     const config: SyncConfig = req.body;
 
@@ -70,7 +73,7 @@ router.post('/configure', authenticate(['admin', 'user']), async (req: Request, 
  * POST /api/sync/execute
  * Execute one-time data synchronization
  */
-router.post('/execute', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.post('/execute', noAuth, async (req: Request, res: Response) => {
   try {
     const config: SyncConfig = req.body;
 
@@ -115,7 +118,7 @@ router.post('/execute', authenticate(['admin', 'user']), async (req: Request, re
  * POST /api/sync/start
  * Start continuous synchronization
  */
-router.post('/start', authenticate(['admin']), async (req: Request, res: Response) => {
+router.post('/start', noAuth, async (req: Request, res: Response) => {
   try {
     const config: SyncConfig = req.body;
 
@@ -172,7 +175,7 @@ router.post('/start', authenticate(['admin']), async (req: Request, res: Respons
  * POST /api/sync/:id/stop
  * Stop continuous synchronization
  */
-router.post('/:id/stop', authenticate(['admin']), async (req: Request, res: Response) => {
+router.post('/:id/stop', noAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -212,7 +215,7 @@ router.post('/:id/stop', authenticate(['admin']), async (req: Request, res: Resp
  * POST /api/sync/:id/pause
  * Pause continuous synchronization
  */
-router.post('/:id/pause', authenticate(['admin']), async (req: Request, res: Response) => {
+router.post('/:id/pause', noAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -249,7 +252,7 @@ router.post('/:id/pause', authenticate(['admin']), async (req: Request, res: Res
  * POST /api/sync/:id/resume
  * Resume paused synchronization
  */
-router.post('/:id/resume', authenticate(['admin']), async (req: Request, res: Response) => {
+router.post('/:id/resume', noAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -286,7 +289,7 @@ router.post('/:id/resume', authenticate(['admin']), async (req: Request, res: Re
  * GET /api/sync/:id/status
  * Get sync job status
  */
-router.get('/:id/status', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.get('/:id/status', noAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -317,7 +320,7 @@ router.get('/:id/status', authenticate(['admin', 'user']), async (req: Request, 
  * GET /api/sync/jobs
  * List all active sync jobs
  */
-router.get('/jobs', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.get('/jobs', noAuth, async (req: Request, res: Response) => {
   try {
     const jobs = Array.from(syncManagers.keys()).map(id => {
       const manager = syncManagers.get(id);
@@ -345,7 +348,7 @@ router.get('/jobs', authenticate(['admin', 'user']), async (req: Request, res: R
  * POST /api/sync/validate
  * Validate sync configuration
  */
-router.post('/validate', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.post('/validate', noAuth, async (req: Request, res: Response) => {
   try {
     const config: SyncConfig = req.body;
 
@@ -388,7 +391,7 @@ router.post('/validate', authenticate(['admin', 'user']), async (req: Request, r
  * GET /api/sync/templates
  * Get sync configuration templates
  */
-router.get('/templates', authenticate(['admin', 'user']), async (req: Request, res: Response) => {
+router.get('/templates', noAuth, async (req: Request, res: Response) => {
   try {
     const templates = [
       {

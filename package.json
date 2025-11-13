@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "client": "API_ENABLE_AUTH=false ts-node src/api/server.ts",
+    "client": "API_ENABLE_AUTH=false ts-node --transpile-only src/api/server.ts",
     "client:build": "npm run build && API_ENABLE_AUTH=false node dist/api/server.js",
     "test": "jest",
     "test:watch": "jest --watch",

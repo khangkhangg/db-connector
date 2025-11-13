@@ -38,7 +38,7 @@ export class APIServer {
     this.config = {
       port: config.port || parseInt(process.env.API_PORT || '3000'),
       host: config.host || process.env.API_HOST || '0.0.0.0',
-      enableAuth: config.enableAuth ?? true,
+      enableAuth: config.enableAuth ?? (process.env.API_ENABLE_AUTH !== 'false'),
       enableRateLimit: config.enableRateLimit ?? true,
       rateLimitWindowMs: config.rateLimitWindowMs || 15 * 60 * 1000, // 15 minutes
       rateLimitMaxRequests: config.rateLimitMaxRequests || 100,
