@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Schema Mapper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .mapper-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .mapper-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .mapper-header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .connection-status {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #48bb78;
+            box-shadow: 0 0 8px #48bb78;
+        }
+
+        /* Toolbar */
+        .mapper-toolbar {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toolbar-left, .toolbar-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        /* Stats */
+        .mapping-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .stat-badge.mapped {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .stat-badge.unmapped {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .stat-badge.modified {
+            background: #fef5e7;
+            color: #975a16;
+        }
+
+        /* Main Content */
+        .mapper-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Schema Panels */
+        .schema-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            overflow: hidden;
+        }
+
+        .schema-panel.source {
+            border-right: 2px solid #e0e0e0;
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            background: #f7fafc;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-info {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .search-box {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Schema Tree */
+        .schema-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .table-item {
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .table-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .table-item.selected {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .table-item.mapped {
+            border-left: 4px solid #48bb78;
+        }
+
+        .table-item.unmapped {
+            border-left: 4px solid #f56565;
+        }
+
+        .table-item.modified {
+            border-left: 4px solid #ed8936;
+        }
+
+        .table-header {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .table-name {
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-icon {
+            font-size: 16px;
+        }
+
+        .table-meta {
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .expand-icon {
+            font-size: 12px;
+            color: #718096;
+            transition: transform 0.2s;
+        }
+
+        .table-item.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .columns-list {
+            display: none;
+            padding: 10px 15px 15px 35px;
+            background: #f7fafc;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .table-item.expanded .columns-list {
+            display: block;
+        }
+
+        .column-item {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .column-item:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .column-item.mapped {
+            border-left: 3px solid #48bb78;
+            background: #f0fff4;
+        }
+
+        .column-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .column-type {
+            color: #718096;
+            font-size: 11px;
+        }
+
+        .column-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .column-badge.pk {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .column-badge.fk {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .column-badge.nullable {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        /* Mapping Canvas */
+        .mapping-canvas {
+            width: 60px;
+            background: #f7fafc;
+            border-left: 1px solid #e0e0e0;
+            border-right: 1px solid #e0e0e0;
+            position: relative;
+        }
+
+        .mapping-line {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .mapping-line line {
+            stroke: #48bb78;
+            stroke-width: 2;
+            stroke-opacity: 0.6;
+        }
+
+        .mapping-line.active line {
+            stroke: #667eea;
+            stroke-width: 3;
+            stroke-opacity: 1;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #718096;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mapper-container">
+        <!-- Header -->
+        <div class="mapper-header">
+            <h1>🗺️ Visual Schema Mapper</h1>
+            <div class="connection-status">
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span id="sourceConnection">Source: Not Connected</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span id="targetConnection">Target: Not Connected</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="mapper-toolbar">
+            <div class="toolbar-left">
+                <button class="btn btn-primary" onclick="loadSchemas()">🔄 Load Schemas</button>
+                <button class="btn btn-success" onclick="autoMap()">✨ Auto-Map</button>
+                <button class="btn btn-secondary" onclick="clearMappings()">🗑️ Clear Mappings</button>
+            </div>
+
+            <div class="mapping-stats">
+                <div class="stat-item">
+                    <span>Mapped:</span>
+                    <span class="stat-badge mapped" id="mappedCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Unmapped:</span>
+                    <span class="stat-badge unmapped" id="unmappedCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Modified:</span>
+                    <span class="stat-badge modified" id="modifiedCount">0</span>
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <button class="btn btn-secondary" onclick="exportMapping()">💾 Export Mapping</button>
+                <button class="btn btn-primary" onclick="generateDDL()">📜 Generate DDL</button>
+                <button class="btn btn-success" onclick="executeMigration()">🚀 Execute Migration</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="mapper-content">
+            <!-- Source Schema Panel -->
+            <div class="schema-panel source">
+                <div class="panel-header">
+                    <div>
+                        <div class="panel-title">
+                            📥 Source Schema
+                        </div>
+                        <div class="panel-info" id="sourceInfo">No schema loaded</div>
+                    </div>
+                </div>
+                <div class="search-box">
+                    <input type="text" placeholder="🔍 Search tables..." id="sourceSearch" onkeyup="filterTables('source')">
+                </div>
+                <div class="schema-tree" id="sourceTree">
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-title">No Source Schema</div>
+                        <div class="empty-text">Connect to a source database and load schema</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapping Canvas -->
+            <div class="mapping-canvas">
+                <svg id="mappingCanvas" width="60" height="100%" style="position: absolute; top: 0; left: 0;">
+                </svg>
+            </div>
+
+            <!-- Target Schema Panel -->
+            <div class="schema-panel target">
+                <div class="panel-header">
+                    <div>
+                        <div class="panel-title">
+                            📤 Target Schema
+                        </div>
+                        <div class="panel-info" id="targetInfo">No schema loaded</div>
+                    </div>
+                </div>
+                <div class="search-box">
+                    <input type="text" placeholder="🔍 Search tables..." id="targetSearch" onkeyup="filterTables('target')">
+                </div>
+                <div class="schema-tree" id="targetTree">
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-title">No Target Schema</div>
+                        <div class="empty-text">Connect to a target database and load schema</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapping Modal -->
+    <div class="modal" id="mappingModal">
+        <div class="modal-content">
+            <div class="modal-header">Create Table Mapping</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Source Table:</label>
+                    <select id="modalSourceTable">
+                        <option value="">Select source table...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target Table:</label>
+                    <select id="modalTargetTable">
+                        <option value="">Select target table...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mapping Type:</label>
+                    <select id="mappingType">
+                        <option value="direct">Direct Mapping</option>
+                        <option value="transform">With Transformation</option>
+                        <option value="merge">Merge Tables</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMapping()">Save Mapping</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align: center;">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loadingText">Loading schemas...</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration from parent page
+        const config = {
+            apiBase: window.location.origin + '/api',
+            source: null,
+            target: null
+        };
+
+        // Schema data
+        let sourceSchema = null;
+        let targetSchema = null;
+        let tableMappings = {};
+        let selectedSource = null;
+        let selectedTarget = null;
+
+        // Initialize
+        window.onload = function() {
+            // Try to get connection info from URL params or localStorage
+            loadConnectionInfo();
+        };
+
+        function loadConnectionInfo() {
+            const params = new URLSearchParams(window.location.search);
+
+            // Try to load from localStorage (saved from main page)
+            const savedSource = localStorage.getItem('sourceConnection');
+            const savedTarget = localStorage.getItem('targetConnection');
+
+            if (savedSource) {
+                config.source = JSON.parse(savedSource);
+                document.getElementById('sourceConnection').textContent =
+                    `Source: ${config.source.type} - ${config.source.host}:${config.source.port}/${config.source.database}`;
+            }
+
+            if (savedTarget) {
+                config.target = JSON.parse(savedTarget);
+                document.getElementById('targetConnection').textContent =
+                    `Target: ${config.target.type} - ${config.target.host}:${config.target.port}/${config.target.database}`;
+            }
+        }
+
+        // Load schemas from API
+        async function loadSchemas() {
+            if (!config.source || !config.target) {
+                alert('Please configure source and target connections first!');
+                window.location.href = '/';
+                return;
+            }
+
+            showLoading('Loading schemas...');
+
+            try {
+                // Load source schema
+                setLoadingText('Loading source schema...');
+                const sourceResponse = await fetch(`${config.apiBase}/schema/read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config.source)
+                });
+                const sourceData = await sourceResponse.json();
+
+                if (!sourceData.success) {
+                    throw new Error('Failed to load source schema: ' + (sourceData.error || sourceData.message));
+                }
+
+                sourceSchema = sourceData.schema;
+                renderSchema('source', sourceSchema);
+                document.getElementById('sourceInfo').textContent =
+                    `${sourceSchema.tables.length} tables, ${getTotalColumns(sourceSchema)} columns`;
+
+                // Load target schema
+                setLoadingText('Loading target schema...');
+                const targetResponse = await fetch(`${config.apiBase}/schema/read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config.target)
+                });
+                const targetData = await targetResponse.json();
+
+                if (!targetData.success) {
+                    throw new Error('Failed to load target schema: ' + (targetData.error || targetData.message));
+                }
+
+                targetSchema = targetData.schema;
+                renderSchema('target', targetSchema);
+                document.getElementById('targetInfo').textContent =
+                    `${targetSchema.tables.length} tables, ${getTotalColumns(targetSchema)} columns`;
+
+                updateStats();
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                alert('Error loading schemas: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function getTotalColumns(schema) {
+            return schema.tables.reduce((sum, table) => sum + table.columns.length, 0);
+        }
+
+        // Render schema tree
+        function renderSchema(side, schema) {
+            const treeDiv = document.getElementById(side + 'Tree');
+            treeDiv.innerHTML = '';
+
+            schema.tables.forEach(table => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'table-item unmapped';
+                tableDiv.setAttribute('data-table', table.name);
+                tableDiv.setAttribute('data-side', side);
+
+                const primaryKeys = table.columns.filter(c => c.isPrimaryKey).map(c => c.name);
+                const foreignKeys = table.foreignKeys?.length || 0;
+
+                tableDiv.innerHTML = `
+                    <div class="table-header" onclick="toggleTable(this)">
+                        <div class="table-name">
+                            <span class="table-icon">📋</span>
+                            <span>${table.name}</span>
+                            <span class="table-meta">(${table.columns.length} cols)</span>
+                        </div>
+                        <span class="expand-icon">▶</span>
+                    </div>
+                    <div class="columns-list">
+                        ${table.columns.map(col => `
+                            <div class="column-item" data-column="${col.name}">
+                                <div>
+                                    <span class="column-name">${col.name}</span>
+                                    <span class="column-type">${col.dataType}</span>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    ${col.isPrimaryKey ? '<span class="column-badge pk">PK</span>' : ''}
+                                    ${col.isForeignKey ? '<span class="column-badge fk">FK</span>' : ''}
+                                    ${col.nullable ? '<span class="column-badge nullable">NULL</span>' : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                // Add click handler for table selection
+                tableDiv.querySelector('.table-header').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectTable(side, table.name);
+                });
+
+                treeDiv.appendChild(tableDiv);
+            });
+        }
+
+        function toggleTable(header) {
+            const tableItem = header.closest('.table-item');
+            tableItem.classList.toggle('expanded');
+        }
+
+        function selectTable(side, tableName) {
+            // Deselect previous
+            document.querySelectorAll(`.table-item[data-side="${side}"]`).forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Select new
+            const tableEl = document.querySelector(`.table-item[data-side="${side}"][data-table="${tableName}"]`);
+            if (tableEl) {
+                tableEl.classList.add('selected');
+            }
+
+            if (side === 'source') {
+                selectedSource = tableName;
+            } else {
+                selectedTarget = tableName;
+            }
+
+            // If both selected, prompt for mapping
+            if (selectedSource && selectedTarget) {
+                createMapping(selectedSource, selectedTarget);
+            }
+        }
+
+        function createMapping(sourceTable, targetTable) {
+            tableMappings[sourceTable] = targetTable;
+
+            // Update UI
+            const sourceEl = document.querySelector(`.table-item[data-side="source"][data-table="${sourceTable}"]`);
+            const targetEl = document.querySelector(`.table-item[data-side="target"][data-table="${targetTable}"]`);
+
+            if (sourceEl) sourceEl.className = 'table-item mapped';
+            if (targetEl) targetEl.className = 'table-item mapped';
+
+            // Clear selections
+            selectedSource = null;
+            selectedTarget = null;
+
+            updateStats();
+            drawMappingLines();
+        }
+
+        function drawMappingLines() {
+            const svg = document.getElementById('mappingCanvas');
+            svg.innerHTML = '';
+
+            Object.entries(tableMappings).forEach(([source, target]) => {
+                const sourceEl = document.querySelector(`.table-item[data-side="source"][data-table="${source}"]`);
+                const targetEl = document.querySelector(`.table-item[data-side="target"][data-table="${target}"]`);
+
+                if (sourceEl && targetEl) {
+                    const sourceRect = sourceEl.getBoundingClientRect();
+                    const targetRect = targetEl.getBoundingClientRect();
+                    const svgRect = svg.getBoundingClientRect();
+
+                    const x1 = 0;
+                    const y1 = sourceRect.top + sourceRect.height / 2 - svgRect.top;
+                    const x2 = 60;
+                    const y2 = targetRect.top + targetRect.height / 2 - svgRect.top;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1);
+                    line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2);
+                    line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', '#48bb78');
+                    line.setAttribute('stroke-width', '2');
+
+                    svg.appendChild(line);
+                }
+            });
+        }
+
+        // Auto-map by name similarity
+        function autoMap() {
+            if (!sourceSchema || !targetSchema) {
+                alert('Please load schemas first!');
+                return;
+            }
+
+            let mapped = 0;
+
+            sourceSchema.tables.forEach(sourceTable => {
+                const sourceName = sourceTable.name.toLowerCase();
+
+                // Try exact match first
+                let targetTable = targetSchema.tables.find(t => t.name.toLowerCase() === sourceName);
+
+                // Try without prefix/suffix
+                if (!targetTable) {
+                    const cleanSource = sourceName.replace(/^(tbl_|dbo_|)/, '').replace(/(_tbl|_table)$/, '');
+                    targetTable = targetSchema.tables.find(t => {
+                        const cleanTarget = t.name.toLowerCase().replace(/^(tbl_|dbo_|)/, '').replace(/(_tbl|_table)$/, '');
+                        return cleanTarget === cleanSource;
+                    });
+                }
+
+                if (targetTable) {
+                    createMapping(sourceTable.name, targetTable.name);
+                    mapped++;
+                }
+            });
+
+            alert(`Auto-mapped ${mapped} tables!`);
+        }
+
+        function clearMappings() {
+            if (!confirm('Clear all mappings?')) return;
+
+            tableMappings = {};
+
+            document.querySelectorAll('.table-item').forEach(el => {
+                el.classList.remove('mapped', 'selected');
+                el.classList.add('unmapped');
+            });
+
+            selectedSource = null;
+            selectedTarget = null;
+
+            updateStats();
+            document.getElementById('mappingCanvas').innerHTML = '';
+        }
+
+        function updateStats() {
+            const mapped = Object.keys(tableMappings).length;
+            const totalSource = sourceSchema ? sourceSchema.tables.length : 0;
+            const totalTarget = targetSchema ? targetSchema.tables.length : 0;
+            const unmapped = totalSource - mapped;
+
+            document.getElementById('mappedCount').textContent = mapped;
+            document.getElementById('unmappedCount').textContent = unmapped;
+            document.getElementById('modifiedCount').textContent = 0; // TODO: detect modifications
+        }
+
+        function filterTables(side) {
+            const searchInput = document.getElementById(side + 'Search');
+            const filter = searchInput.value.toLowerCase();
+            const tables = document.querySelectorAll(`.table-item[data-side="${side}"]`);
+
+            tables.forEach(table => {
+                const tableName = table.getAttribute('data-table').toLowerCase();
+                if (tableName.includes(filter)) {
+                    table.style.display = '';
+                } else {
+                    table.style.display = 'none';
+                }
+            });
+        }
+
+        // Export/Generate functions
+        function exportMapping() {
+            const mapping = {
+                source: config.source,
+                target: config.target,
+                tableMappings: tableMappings,
+                timestamp: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(mapping, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `schema-mapping-${Date.now()}.json`;
+            a.click();
+        }
+
+        function generateDDL() {
+            alert('DDL generation will be implemented next!');
+        }
+
+        function executeMigration() {
+            if (Object.keys(tableMappings).length === 0) {
+                alert('Please create some table mappings first!');
+                return;
+            }
+
+            if (!confirm(`Execute migration with ${Object.keys(tableMappings).length} mapped tables?`)) {
+                return;
+            }
+
+            alert('Migration execution will be implemented next!');
+        }
+
+        // Modal functions
+        function showModal() {
+            document.getElementById('mappingModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('mappingModal').classList.remove('show');
+        }
+
+        function saveMapping() {
+            // TODO: Implement
+            closeModal();
+        }
+
+        // Loading functions
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function setLoadingText(text) {
+            document.getElementById('loadingText').textContent = text;
+        }
+
+        // Redraw lines on scroll/resize
+        window.addEventListener('resize', drawMappingLines);
+        document.querySelectorAll('.schema-tree').forEach(tree => {
+            tree.addEventListener('scroll', drawMappingLines);
+        });
+    </script>
+</body>
+</html>

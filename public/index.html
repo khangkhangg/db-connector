@@ -653,6 +653,10 @@
         <div class="card actions-card">
             <h2>⚡ Actions</h2>
             <div class="action-buttons">
+                <button class="action-button" onclick="openVisualMapper()" id="visualMapperBtn" disabled style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <span class="action-icon">🗺️</span>
+                    Visual Schema Mapper
+                </button>
                 <button class="action-button" onclick="compareSchemas()" id="compareBtn" disabled>
                     <span class="action-icon">🔍</span>
                     Compare Schemas
@@ -1121,7 +1125,25 @@
             document.getElementById('viewTargetBtn').disabled = !targetConnected;
             document.getElementById('compareBtn').disabled = !(sourceConnected && targetConnected);
             document.getElementById('syncBtn').disabled = !(sourceConnected && targetConnected);
+            document.getElementById('visualMapperBtn').disabled = !(sourceConnected && targetConnected);
             log(`Action buttons updated. Source: ${sourceConnected}, Target: ${targetConnected}`, 'info');
+        }
+
+        // Open visual schema mapper
+        function openVisualMapper() {
+            log('Opening Visual Schema Mapper...', 'info');
+
+            // Save connection configs to localStorage for the mapper page
+            const sourceConfig = getConnectionConfig('source');
+            const targetConfig = getConnectionConfig('target');
+
+            localStorage.setItem('sourceConnection', JSON.stringify(sourceConfig));
+            localStorage.setItem('targetConnection', JSON.stringify(targetConfig));
+
+            // Open mapper in new window/tab
+            window.open('/schema-mapper.html', '_blank');
+
+            showSuccess('Visual Schema Mapper opened in new tab!');
         }
 
         // View schema
