@@ -1223,18 +1223,22 @@
             output += '═'.repeat(80) + '\n\n';
 
             schema.tables.forEach(table => {
-                output += `📋 ${table.name}\n`;
+                // Handle different property names for table name
+                const tableName = table.name || table.tableName || table.table_name || 'Unnamed Table';
+                output += `📋 ${tableName}\n`;
                 output += `   Columns: ${table.columns?.length || 0}\n`;
 
                 if (table.columns && table.columns.length > 0) {
                     table.columns.forEach(col => {
                         const badges = [];
-                        if (col.isPrimaryKey) badges.push('PK');
-                        if (col.isForeignKey) badges.push('FK');
-                        if (col.nullable) badges.push('NULL');
+                        if (col.isPrimaryKey || col.is_primary_key) badges.push('PK');
+                        if (col.isForeignKey || col.is_foreign_key) badges.push('FK');
+                        if (col.nullable || col.is_nullable) badges.push('NULL');
 
+                        const colName = col.name || col.columnName || col.column_name || 'unnamed';
+                        const colType = col.dataType || col.data_type || col.type || 'unknown';
                         const badgeStr = badges.length > 0 ? ` [${badges.join(', ')}]` : '';
-                        output += `      • ${col.name}: ${col.dataType}${badgeStr}\n`;
+                        output += `      • ${colName}: ${colType}${badgeStr}\n`;
                     });
                 }
 

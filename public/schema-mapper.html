@@ -561,6 +561,8 @@
                 <button class="btn btn-secondary" onclick="exportMapping()">💾 Export Mapping</button>
                 <button class="btn btn-primary" onclick="generateDDL()">📜 Generate DDL</button>
                 <button class="btn btn-success" onclick="executeMigration()">🚀 Execute Migration</button>
+                <button class="btn btn-primary" onclick="showSyncConfigModal()" style="background: #f59e0b;">⚙️ Configure Sync</button>
+                <button class="btn btn-success" onclick="startAutoSync()" id="autoSyncBtn" disabled>🔄 Start Auto-Sync</button>
             </div>
         </div>
 
@@ -651,6 +653,76 @@
         </div>
     </div>
 
+    <!-- Sync Configuration Modal -->
+    <div class="modal" id="syncConfigModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">⚙️ Configure Automatic Synchronization</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Sync Direction:</label>
+                    <select id="syncDirection">
+                        <option value="source-to-target">Source → Target (Overwrite target with source data)</option>
+                        <option value="target-to-source">Target → Source (Overwrite source with target data)</option>
+                        <option value="bidirectional">Bidirectional (Sync both ways using conflict rules)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Conflict Resolution Strategy:</label>
+                    <select id="conflictStrategy">
+                        <option value="source-wins">Source Wins (Always use source data)</option>
+                        <option value="target-wins">Target Wins (Always use target data)</option>
+                        <option value="newest-wins">Newest Wins (Use most recently updated)</option>
+                        <option value="manual">Manual (Prompt for each conflict)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Sync Mode:</label>
+                    <select id="syncMode">
+                        <option value="full">Full Sync (All data)</option>
+                        <option value="incremental">Incremental (Only changes)</option>
+                        <option value="delta">Delta (Track changes since last sync)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Auto-Sync Interval (seconds):</label>
+                    <input type="number" id="syncInterval" value="300" min="30" max="3600" placeholder="300">
+                    <small style="color: #666; font-size: 12px;">How often to automatically sync (30-3600 seconds)</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="detectChanges" checked>
+                        <span>Detect Schema Changes</span>
+                    </label>
+                    <small style="color: #666; font-size: 12px;">Alert when source or target schema has changed</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="validateData" checked>
+                        <span>Validate Data Before Sync</span>
+                    </label>
+                    <small style="color: #666; font-size: 12px;">Check for data type compatibility and constraints</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Tables to Sync:</label>
+                    <select id="tablesToSync" multiple style="height: 100px;">
+                        <option value="*" selected>All Mapped Tables</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Hold Ctrl/Cmd to select multiple tables</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSyncConfigModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSyncConfig()">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div style="text-align: center;">
@@ -700,6 +772,35 @@
             }
         }
 
+        // Normalize schema structure - handle different property names
+        function normalizeSchema(schema) {
+            if (!schema || !schema.tables) return schema;
+
+            schema.tables = schema.tables.map(table => {
+                // Normalize table name property
+                const tableName = table.name || table.tableName || table.table_name || 'Unnamed Table';
+
+                // Normalize columns
+                const columns = (table.columns || []).map(col => ({
+                    name: col.name || col.columnName || col.column_name || 'unnamed',
+                    dataType: col.dataType || col.data_type || col.type || 'unknown',
+                    isPrimaryKey: col.isPrimaryKey || col.is_primary_key || false,
+                    isForeignKey: col.isForeignKey || col.is_foreign_key || false,
+                    nullable: col.nullable || col.is_nullable || false,
+                    defaultValue: col.defaultValue || col.default_value
+                }));
+
+                return {
+                    name: tableName,
+                    columns: columns,
+                    primaryKeys: table.primaryKeys || columns.filter(c => c.isPrimaryKey).map(c => c.name),
+                    foreignKeys: table.foreignKeys || []
+                };
+            });
+
+            return schema;
+        }
+
         // Load schemas from API
         async function loadSchemas() {
             if (!config.source || !config.target) {
@@ -724,7 +825,9 @@
                     throw new Error('Failed to load source schema: ' + (sourceData.error || sourceData.message));
                 }
 
-                sourceSchema = sourceData.schema;
+                // Normalize schema structure
+                sourceSchema = normalizeSchema(sourceData.schema);
+                console.log('Normalized source schema:', sourceSchema);
                 renderSchema('source', sourceSchema);
                 document.getElementById('sourceInfo').textContent =
                     `${sourceSchema.tables.length} tables, ${getTotalColumns(sourceSchema)} columns`;
@@ -742,7 +845,9 @@
                     throw new Error('Failed to load target schema: ' + (targetData.error || targetData.message));
                 }
 
-                targetSchema = targetData.schema;
+                // Normalize schema structure
+                targetSchema = normalizeSchema(targetData.schema);
+                console.log('Normalized target schema:', targetSchema);
                 renderSchema('target', targetSchema);
                 document.getElementById('targetInfo').textContent =
                     `${targetSchema.tables.length} tables, ${getTotalColumns(targetSchema)} columns`;
@@ -771,13 +876,19 @@
                 tableDiv.setAttribute('data-table', table.name);
                 tableDiv.setAttribute('data-side', side);
 
+                // Make source tables draggable
+                if (side === 'source') {
+                    tableDiv.setAttribute('draggable', 'true');
+                    tableDiv.style.cursor = 'grab';
+                }
+
                 const primaryKeys = table.columns.filter(c => c.isPrimaryKey).map(c => c.name);
                 const foreignKeys = table.foreignKeys?.length || 0;
 
                 tableDiv.innerHTML = `
-                    <div class="table-header" onclick="toggleTable(this)">
+                    <div class="table-header">
                         <div class="table-name">
-                            <span class="table-icon">📋</span>
+                            <span class="table-icon">${side === 'source' ? '📥' : '📤'}</span>
                             <span>${table.name}</span>
                             <span class="table-meta">(${table.columns.length} cols)</span>
                         </div>
@@ -800,11 +911,68 @@
                     </div>
                 `;
 
-                // Add click handler for table selection
-                tableDiv.querySelector('.table-header').addEventListener('click', (e) => {
+                const header = tableDiv.querySelector('.table-header');
+
+                // Add click handler for expanding/collapsing
+                header.addEventListener('click', (e) => {
+                    if (!e.target.closest('.expand-icon')) {
+                        tableDiv.classList.toggle('expanded');
+                    }
+                });
+
+                // Add click handler for table selection (click on expand icon)
+                header.querySelector('.expand-icon').addEventListener('click', (e) => {
                     e.stopPropagation();
+                    tableDiv.classList.toggle('expanded');
+                });
+
+                // Double-click to select for mapping
+                header.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
                     selectTable(side, table.name);
                 });
+
+                // Drag and drop handlers for source tables
+                if (side === 'source') {
+                    tableDiv.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.effectAllowed = 'copy';
+                        e.dataTransfer.setData('text/plain', table.name);
+                        tableDiv.style.opacity = '0.5';
+                        tableDiv.style.cursor = 'grabbing';
+                    });
+
+                    tableDiv.addEventListener('dragend', (e) => {
+                        tableDiv.style.opacity = '1';
+                        tableDiv.style.cursor = 'grab';
+                    });
+                }
+
+                // Make target tables droppable
+                if (side === 'target') {
+                    tableDiv.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        tableDiv.style.background = '#edf2f7';
+                        tableDiv.style.borderColor = '#667eea';
+                    });
+
+                    tableDiv.addEventListener('dragleave', (e) => {
+                        tableDiv.style.background = '';
+                        tableDiv.style.borderColor = '';
+                    });
+
+                    tableDiv.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const sourceTableName = e.dataTransfer.getData('text/plain');
+                        const targetTableName = table.name;
+
+                        tableDiv.style.background = '';
+                        tableDiv.style.borderColor = '';
+
+                        // Create mapping
+                        createMapping(sourceTableName, targetTableName);
+                    });
+                }
 
                 treeDiv.appendChild(tableDiv);
             });
@@ -1244,6 +1412,237 @@
 
         function setLoadingText(text) {
             document.getElementById('loadingText').textContent = text;
+        }
+
+        // ============================================
+        // SYNC CONFIGURATION AND AUTO-SYNC
+        // ============================================
+
+        let syncConfig = {
+            direction: 'source-to-target',
+            conflictStrategy: 'source-wins',
+            mode: 'full',
+            interval: 300,
+            detectChanges: true,
+            validateData: true,
+            tables: ['*']
+        };
+        let autoSyncInterval = null;
+        let autoSyncRunning = false;
+
+        function showSyncConfigModal() {
+            if (Object.keys(tableMappings).length === 0) {
+                alert('Please create some table mappings first!');
+                return;
+            }
+
+            // Populate tables dropdown with mapped tables
+            const tablesSelect = document.getElementById('tablesToSync');
+            tablesSelect.innerHTML = '<option value="*" selected>All Mapped Tables</option>';
+            Object.keys(tableMappings).forEach(sourceTable => {
+                const targetTable = tableMappings[sourceTable];
+                tablesSelect.innerHTML += `<option value="${sourceTable}">${sourceTable} → ${targetTable}</option>`;
+            });
+
+            // Load saved config
+            document.getElementById('syncDirection').value = syncConfig.direction;
+            document.getElementById('conflictStrategy').value = syncConfig.conflictStrategy;
+            document.getElementById('syncMode').value = syncConfig.mode;
+            document.getElementById('syncInterval').value = syncConfig.interval;
+            document.getElementById('detectChanges').checked = syncConfig.detectChanges;
+            document.getElementById('validateData').checked = syncConfig.validateData;
+
+            document.getElementById('syncConfigModal').classList.add('show');
+        }
+
+        function closeSyncConfigModal() {
+            document.getElementById('syncConfigModal').classList.remove('show');
+        }
+
+        function saveSyncConfig() {
+            // Save configuration
+            syncConfig = {
+                direction: document.getElementById('syncDirection').value,
+                conflictStrategy: document.getElementById('conflictStrategy').value,
+                mode: document.getElementById('syncMode').value,
+                interval: parseInt(document.getElementById('syncInterval').value),
+                detectChanges: document.getElementById('detectChanges').checked,
+                validateData: document.getElementById('validateData').checked,
+                tables: Array.from(document.getElementById('tablesToSync').selectedOptions).map(opt => opt.value)
+            };
+
+            console.log('Sync configuration saved:', syncConfig);
+            closeSyncConfigModal();
+
+            // Enable auto-sync button
+            document.getElementById('autoSyncBtn').disabled = false;
+
+            alert('✅ Sync configuration saved!\n\nYou can now start automatic synchronization.');
+        }
+
+        async function startAutoSync() {
+            if (Object.keys(tableMappings).length === 0) {
+                alert('Please create some table mappings first!');
+                return;
+            }
+
+            if (autoSyncRunning) {
+                // Stop auto-sync
+                stopAutoSync();
+                return;
+            }
+
+            if (!confirm(`Start automatic synchronization?\n\n` +
+                `Direction: ${syncConfig.direction}\n` +
+                `Conflict Strategy: ${syncConfig.conflictStrategy}\n` +
+                `Sync Mode: ${syncConfig.mode}\n` +
+                `Interval: ${syncConfig.interval} seconds\n\n` +
+                `The sync will run every ${syncConfig.interval} seconds.`)) {
+                return;
+            }
+
+            autoSyncRunning = true;
+            const btn = document.getElementById('autoSyncBtn');
+            btn.textContent = '⏸️ Stop Auto-Sync';
+            btn.style.background = '#f56565';
+
+            // Run first sync immediately
+            await performSync();
+
+            // Schedule recurring syncs
+            autoSyncInterval = setInterval(async () => {
+                await performSync();
+            }, syncConfig.interval * 1000);
+
+            console.log('Auto-sync started with interval:', syncConfig.interval, 'seconds');
+        }
+
+        function stopAutoSync() {
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+                autoSyncInterval = null;
+            }
+
+            autoSyncRunning = false;
+            const btn = document.getElementById('autoSyncBtn');
+            btn.textContent = '🔄 Start Auto-Sync';
+            btn.style.background = '#48bb78';
+
+            console.log('Auto-sync stopped');
+            alert('Auto-sync stopped');
+        }
+
+        async function performSync() {
+            console.log('Performing sync...', new Date().toISOString());
+
+            try {
+                // Detect schema changes if enabled
+                if (syncConfig.detectChanges) {
+                    const changes = await detectSchemaChanges();
+                    if (changes.hasChanges) {
+                        console.warn('Schema changes detected:', changes);
+                        alert(`⚠️  Schema changes detected!\n\n${changes.summary}\n\nPlease review and reload schemas.`);
+                        stopAutoSync();
+                        return;
+                    }
+                }
+
+                // Prepare sync request
+                const syncRequest = {
+                    id: `sync-${Date.now()}`,
+                    name: `Auto-Sync ${new Date().toISOString()}`,
+                    source: config.source,
+                    target: config.target,
+                    tables: syncConfig.tables,
+                    direction: syncConfig.direction,
+                    mode: syncConfig.mode,
+                    conflictStrategy: syncConfig.conflictStrategy,
+                    validateData: syncConfig.validateData,
+                    mappings: tableMappings
+                };
+
+                const response = await fetch(`${config.apiBase}/sync/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(syncRequest)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log('Sync completed successfully:', data.result);
+                    // Update stats
+                    updateStats();
+                } else {
+                    console.error('Sync failed:', data.error);
+                    alert(`❌ Sync failed: ${data.error}\n\nAuto-sync will be stopped.`);
+                    stopAutoSync();
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                alert(`❌ Sync error: ${error.message}\n\nAuto-sync will be stopped.`);
+                stopAutoSync();
+            }
+        }
+
+        async function detectSchemaChanges() {
+            try {
+                // Re-fetch schemas to check for changes
+                const sourceResponse = await fetch(`${config.apiBase}/schema/read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config.source)
+                });
+                const sourceData = await sourceResponse.json();
+
+                const targetResponse = await fetch(`${config.apiBase}/schema/read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config.target)
+                });
+                const targetData = await targetResponse.json();
+
+                if (!sourceData.success || !targetData.success) {
+                    return { hasChanges: false };
+                }
+
+                const newSourceSchema = normalizeSchema(sourceData.schema);
+                const newTargetSchema = normalizeSchema(targetData.schema);
+
+                // Compare table counts
+                const sourceTableCountChanged = sourceSchema.tables.length !== newSourceSchema.tables.length;
+                const targetTableCountChanged = targetSchema.tables.length !== newTargetSchema.tables.length;
+
+                if (sourceTableCountChanged || targetTableCountChanged) {
+                    return {
+                        hasChanges: true,
+                        summary: `Table count changed:\n` +
+                            `Source: ${sourceSchema.tables.length} → ${newSourceSchema.tables.length}\n` +
+                            `Target: ${targetSchema.tables.length} → ${newTargetSchema.tables.length}`
+                    };
+                }
+
+                // Check if mapped tables still exist
+                for (const sourceTable of Object.keys(tableMappings)) {
+                    const sourceExists = newSourceSchema.tables.find(t => t.name === sourceTable);
+                    const targetTable = tableMappings[sourceTable];
+                    const targetExists = newTargetSchema.tables.find(t => t.name === targetTable);
+
+                    if (!sourceExists || !targetExists) {
+                        return {
+                            hasChanges: true,
+                            summary: `Mapped table no longer exists:\n` +
+                                (!sourceExists ? `Source: ${sourceTable}\n` : '') +
+                                (!targetExists ? `Target: ${targetTable}` : '')
+                        };
+                    }
+                }
+
+                return { hasChanges: false };
+            } catch (error) {
+                console.error('Error detecting schema changes:', error);
+                return { hasChanges: false };
+            }
         }
 
         // Redraw lines on scroll/resize
