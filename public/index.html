@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Connector - Connection Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 2px solid #48bb78;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 2px solid #f56565;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+            border: 2px solid #4299e1;
+        }
+
+        .instance-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .instance-item {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .instance-item:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .instance-item.selected {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .instance-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .instance-details {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .database-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .database-item {
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .database-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .database-size {
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .saved-connections {
+            margin-top: 20px;
+        }
+
+        .connection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .connection-info {
+            flex: 1;
+        }
+
+        .connection-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .connection-details {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .connection-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ DB Connector</h1>
+            <p>Connection Manager - Discover & Connect to Databases</p>
+        </div>
+
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-error" id="errorAlert"></div>
+        <div class="alert alert-info" id="infoAlert"></div>
+
+        <div class="main-content">
+            <!-- Auto-Discovery Panel -->
+            <div class="card">
+                <h2>🔍 Auto-Discovery (Windows)</h2>
+
+                <div class="form-group">
+                    <button class="btn btn-primary" id="discoverBtn" onclick="discoverInstances()">
+                        Discover Local SQL Server Instances
+                    </button>
+                </div>
+
+                <div id="discoveryLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Discovering SQL Server instances...</p>
+                </div>
+
+                <div id="instanceList" class="instance-list"></div>
+
+                <div id="selectedInstanceInfo" style="display: none;">
+                    <h3 style="margin-top: 20px; margin-bottom: 10px;">Selected Instance</h3>
+                    <div id="instanceDetails"></div>
+                    <div id="databaseList" class="database-list"></div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" id="connectDiscoveredBtn" onclick="connectToDiscovered()" disabled>
+                        Connect to Selected Instance
+                    </button>
+                </div>
+            </div>
+
+            <!-- Manual Connection Panel -->
+            <div class="card">
+                <h2>⚙️ Manual Connection</h2>
+
+                <div class="form-group">
+                    <label>Database Type</label>
+                    <select id="dbType" onchange="updateFormFields()">
+                        <option value="MSSQL">Microsoft SQL Server</option>
+                        <option value="MySQL">MySQL</option>
+                        <option value="PostgreSQL">PostgreSQL</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Server / Host</label>
+                    <input type="text" id="server" placeholder="localhost or localhost\SQLEXPRESS">
+                </div>
+
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="port" placeholder="1433">
+                </div>
+
+                <div class="form-group">
+                    <label>Database</label>
+                    <input type="text" id="database" placeholder="master">
+                </div>
+
+                <div id="authFields">
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="useWindowsAuth" onchange="toggleAuthFields()">
+                            <label for="useWindowsAuth">Use Windows Authentication (Local SQL Server only)</label>
+                        </div>
+                    </div>
+
+                    <div id="credentialFields">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="username" placeholder="sa">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="password">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Connection Name (for saving)</label>
+                    <input type="text" id="connectionName" placeholder="My Production DB">
+                </div>
+
+                <div>
+                    <button class="btn btn-success" onclick="testConnection()">Test Connection</button>
+                    <button class="btn btn-primary" onclick="saveConnection()">Save Connection</button>
+                    <button class="btn btn-secondary" onclick="connectManual()">Connect</button>
+                </div>
+            </div>
+
+            <!-- Saved Connections Panel -->
+            <div class="card full-width">
+                <h2>📋 Saved Connections</h2>
+                <div id="savedConnectionsList" class="saved-connections"></div>
+            </div>
+
+            <!-- Active Connection Info -->
+            <div class="card full-width" id="activeConnectionCard" style="display: none;">
+                <h2>✅ Active Connection</h2>
+                <div id="activeConnectionInfo"></div>
+                <button class="btn btn-danger" onclick="disconnect()">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let discoveredInstances = [];
+        let selectedInstance = null;
+        let activeConnection = null;
+        const API_BASE = 'http://localhost:3000/api';
+
+        // Load saved connections on page load
+        window.onload = function() {
+            loadSavedConnections();
+            updateFormFields();
+        };
+
+        // Auto-discovery functions
+        async function discoverInstances() {
+            const btn = document.getElementById('discoverBtn');
+            const loading = document.getElementById('discoveryLoading');
+            const list = document.getElementById('instanceList');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            list.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/connections/discover`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.instances) {
+                    discoveredInstances = data.instances;
+                    displayInstances(data.instances);
+                    showInfo(`Found ${data.instances.length} SQL Server instance(s)`);
+                } else {
+                    showError('No SQL Server instances found. Make sure SQL Server is running.');
+                }
+            } catch (error) {
+                showError('Failed to discover instances: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayInstances(instances) {
+            const list = document.getElementById('instanceList');
+            list.innerHTML = '';
+
+            instances.forEach((instance, index) => {
+                const item = document.createElement('div');
+                item.className = 'instance-item';
+                item.onclick = () => selectInstance(index);
+
+                item.innerHTML = `
+                    <div class="instance-name">${instance.displayName}</div>
+                    <div class="instance-details">
+                        ${instance.version ? `Version: ${instance.version}` : 'Click to view details'}
+                    </div>
+                `;
+
+                list.appendChild(item);
+            });
+        }
+
+        async function selectInstance(index) {
+            selectedInstance = discoveredInstances[index];
+
+            // Update UI
+            document.querySelectorAll('.instance-item').forEach((item, i) => {
+                item.classList.toggle('selected', i === index);
+            });
+
+            document.getElementById('connectDiscoveredBtn').disabled = false;
+            document.getElementById('selectedInstanceInfo').style.display = 'block';
+
+            // Load instance details
+            const details = document.getElementById('instanceDetails');
+            details.innerHTML = `
+                <div style="padding: 15px; background: #f7fafc; border-radius: 8px;">
+                    <p><strong>Server:</strong> ${selectedInstance.serverName}</p>
+                    <p><strong>Instance:</strong> ${selectedInstance.instanceName}</p>
+                    ${selectedInstance.version ? `<p><strong>Version:</strong> ${selectedInstance.version}</p>` : ''}
+                </div>
+            `;
+
+            // Load databases
+            try {
+                const response = await fetch(`${API_BASE}/connections/databases`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ server: selectedInstance.serverName })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.databases) {
+                    displayDatabases(data.databases);
+                }
+            } catch (error) {
+                console.error('Failed to load databases:', error);
+            }
+        }
+
+        function displayDatabases(databases) {
+            const list = document.getElementById('databaseList');
+            list.innerHTML = '<h4 style="grid-column: 1/-1; margin-top: 15px;">Available Databases:</h4>';
+
+            databases.forEach(db => {
+                const item = document.createElement('div');
+                item.className = 'database-item';
+                item.innerHTML = `
+                    <div class="database-name">${db.name}</div>
+                    <div class="database-size">${db.size || ''}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function connectToDiscovered() {
+            if (!selectedInstance) return;
+
+            const dbName = prompt('Enter database name (or press OK for master):', 'master');
+            if (dbName === null) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/connections/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'MSSQL',
+                        server: selectedInstance.serverName,
+                        database: dbName,
+                        useWindowsAuth: true
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    activeConnection = data.connection;
+                    showSuccess('Connected successfully!');
+                    showActiveConnection(data.connection);
+                } else {
+                    showError('Connection failed: ' + data.message);
+                }
+            } catch (error) {
+                showError('Connection failed: ' + error.message);
+            }
+        }
+
+        // Manual connection functions
+        function updateFormFields() {
+            const dbType = document.getElementById('dbType').value;
+            const portField = document.getElementById('port');
+            const authFields = document.getElementById('authFields');
+
+            // Set default port
+            if (dbType === 'MSSQL') {
+                portField.value = '1433';
+                authFields.style.display = 'block';
+            } else if (dbType === 'MySQL') {
+                portField.value = '3306';
+                authFields.style.display = 'none';
+            } else if (dbType === 'PostgreSQL') {
+                portField.value = '5432';
+                authFields.style.display = 'none';
+            }
+        }
+
+        function toggleAuthFields() {
+            const useWindowsAuth = document.getElementById('useWindowsAuth').checked;
+            const credentialFields = document.getElementById('credentialFields');
+            credentialFields.style.display = useWindowsAuth ? 'none' : 'block';
+        }
+
+        async function testConnection() {
+            const config = getConnectionConfig();
+
+            try {
+                showInfo('Testing connection...');
+
+                const response = await fetch(`${API_BASE}/connections/test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('✅ Connection test successful!');
+                } else {
+                    showError('❌ Connection test failed: ' + data.message);
+                }
+            } catch (error) {
+                showError('Connection test failed: ' + error.message);
+            }
+        }
+
+        async function connectManual() {
+            const config = getConnectionConfig();
+
+            try {
+                const response = await fetch(`${API_BASE}/connections/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    activeConnection = data.connection;
+                    showSuccess('Connected successfully!');
+                    showActiveConnection(data.connection);
+                } else {
+                    showError('Connection failed: ' + data.message);
+                }
+            } catch (error) {
+                showError('Connection failed: ' + error.message);
+            }
+        }
+
+        function getConnectionConfig() {
+            return {
+                type: document.getElementById('dbType').value,
+                server: document.getElementById('server').value,
+                port: parseInt(document.getElementById('port').value),
+                database: document.getElementById('database').value,
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                useWindowsAuth: document.getElementById('useWindowsAuth').checked
+            };
+        }
+
+        // Saved connections
+        function saveConnection() {
+            const config = getConnectionConfig();
+            const name = document.getElementById('connectionName').value;
+
+            if (!name) {
+                showError('Please enter a connection name');
+                return;
+            }
+
+            const connections = JSON.parse(localStorage.getItem('savedConnections') || '[]');
+            connections.push({ name, config });
+            localStorage.setItem('savedConnections', JSON.stringify(connections));
+
+            showSuccess('Connection saved!');
+            loadSavedConnections();
+        }
+
+        function loadSavedConnections() {
+            const connections = JSON.parse(localStorage.getItem('savedConnections') || '[]');
+            const list = document.getElementById('savedConnectionsList');
+
+            if (connections.length === 0) {
+                list.innerHTML = '<p style="color: #718096;">No saved connections</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+
+            connections.forEach((conn, index) => {
+                const item = document.createElement('div');
+                item.className = 'connection-item';
+
+                item.innerHTML = `
+                    <div class="connection-info">
+                        <div class="connection-name">${conn.name}</div>
+                        <div class="connection-details">
+                            ${conn.config.type} - ${conn.config.server}:${conn.config.port}/${conn.config.database}
+                        </div>
+                    </div>
+                    <div class="connection-actions">
+                        <button class="btn btn-success" onclick="loadConnection(${index})">Load</button>
+                        <button class="btn btn-danger" onclick="deleteConnection(${index})">Delete</button>
+                    </div>
+                `;
+
+                list.appendChild(item);
+            });
+        }
+
+        function loadConnection(index) {
+            const connections = JSON.parse(localStorage.getItem('savedConnections') || '[]');
+            const conn = connections[index];
+
+            document.getElementById('dbType').value = conn.config.type;
+            document.getElementById('server').value = conn.config.server;
+            document.getElementById('port').value = conn.config.port;
+            document.getElementById('database').value = conn.config.database;
+            document.getElementById('username').value = conn.config.username || '';
+            document.getElementById('password').value = conn.config.password || '';
+            document.getElementById('useWindowsAuth').checked = conn.config.useWindowsAuth || false;
+            document.getElementById('connectionName').value = conn.name;
+
+            toggleAuthFields();
+            showInfo('Connection loaded. Click "Connect" to establish connection.');
+        }
+
+        function deleteConnection(index) {
+            if (!confirm('Delete this connection?')) return;
+
+            const connections = JSON.parse(localStorage.getItem('savedConnections') || '[]');
+            connections.splice(index, 1);
+            localStorage.setItem('savedConnections', JSON.stringify(connections));
+
+            loadSavedConnections();
+            showInfo('Connection deleted');
+        }
+
+        // Active connection
+        function showActiveConnection(connection) {
+            const card = document.getElementById('activeConnectionCard');
+            const info = document.getElementById('activeConnectionInfo');
+
+            info.innerHTML = `
+                <div style="padding: 15px; background: #c6f6d5; border-radius: 8px;">
+                    <p><strong>Type:</strong> ${connection.type}</p>
+                    <p><strong>Server:</strong> ${connection.server}</p>
+                    <p><strong>Database:</strong> ${connection.database}</p>
+                    <p><strong>Status:</strong> <span style="color: #22543d;">● Connected</span></p>
+                </div>
+            `;
+
+            card.style.display = 'block';
+        }
+
+        function disconnect() {
+            activeConnection = null;
+            document.getElementById('activeConnectionCard').style.display = 'none';
+            showInfo('Disconnected');
+        }
+
+        // Alert functions
+        function showSuccess(message) {
+            showAlert('successAlert', message);
+        }
+
+        function showError(message) {
+            showAlert('errorAlert', message);
+        }
+
+        function showInfo(message) {
+            showAlert('infoAlert', message);
+        }
+
+        function showAlert(id, message) {
+            const alert = document.getElementById(id);
+            alert.textContent = message;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

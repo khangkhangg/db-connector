@@ -6,6 +6,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { createLogger } from '../utils/logger';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error-handler';
@@ -14,6 +15,7 @@ import migrationRoutes from './routes/migration';
 import monitoringRoutes from './routes/monitoring';
 import auditRoutes from './routes/audit';
 import syncRoutes from './routes/sync';
+import connectionsRoutes from './routes/connections';
 
 const logger = createLogger('APIServer');
 
@@ -53,8 +55,17 @@ export class APIServer {
    * Setup middleware
    */
   private setupMiddleware(): void {
-    // Security headers
-    this.app.use(helmet());
+    // Security headers (allow inline scripts for UI)
+    this.app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:"],
+        },
+      },
+    }));
 
     // CORS
     this.app.use(cors({
@@ -100,6 +111,15 @@ export class APIServer {
    * Setup routes
    */
   private setupRoutes(): void {
+    // Serve static files (UI) - no auth required
+    const publicPath = path.join(__dirname, '../../public');
+    this.app.use(express.static(publicPath));
+
+    // Root redirect to UI
+    this.app.get('/', (req: Request, res: Response) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    });
+
     // Health check (no auth required)
     this.app.get('/health', (req: Request, res: Response) => {
       res.json({
@@ -119,12 +139,16 @@ export class APIServer {
           migration: '/api/migration',
           monitoring: '/api/monitoring',
           audit: '/api/audit',
-          sync: '/api/sync'
+          sync: '/api/sync',
+          connections: '/api/connections'
         }
       });
     });
 
-    // Mount route handlers
+    // Connection management routes (no auth for local client use)
+    this.app.use('/api/connections', connectionsRoutes);
+
+    // Mount other route handlers
     this.app.use('/api/schema', schemaRoutes);
     this.app.use('/api/migration', migrationRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
