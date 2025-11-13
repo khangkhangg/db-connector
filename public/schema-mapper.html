@@ -540,6 +540,7 @@
                 <button class="btn btn-primary" onclick="loadSchemas()">🔄 Load Schemas</button>
                 <button class="btn btn-success" onclick="autoMap()">✨ Auto-Map</button>
                 <button class="btn btn-secondary" onclick="clearMappings()">🗑️ Clear Mappings</button>
+                <button class="btn btn-secondary" onclick="showDownloadMenu()" style="position: relative;">📥 Download</button>
             </div>
 
             <div class="mapping-stats">
@@ -668,13 +669,21 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Conflict Resolution Strategy:</label>
+                    <label>Conflict Resolution Strategy (Default):</label>
                     <select id="conflictStrategy">
                         <option value="source-wins">Source Wins (Always use source data)</option>
                         <option value="target-wins">Target Wins (Always use target data)</option>
                         <option value="newest-wins">Newest Wins (Use most recently updated)</option>
                         <option value="manual">Manual (Prompt for each conflict)</option>
                     </select>
+                    <small style="color: #666; font-size: 12px;">Default strategy for all tables (can be overridden per table below)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Per-Table Configuration:</label>
+                    <div id="perTableConfig" style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px;">
+                        <p style="color: #666; font-size: 13px; text-align: center;">Configure individual tables after mapping them</p>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -723,6 +732,90 @@
         </div>
     </div>
 
+    <!-- Column Mapping Modal -->
+    <div class="modal" id="columnMappingModal">
+        <div class="modal-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-header">🔗 Map Columns</div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Source Table:</strong> <span id="colMapSourceTable"></span>
+                        </div>
+                        <div>
+                            <strong>Target Table:</strong> <span id="colMapTargetTable"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 15px; max-height: 400px; overflow-y: auto;">
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 10px;">Source Columns</h4>
+                        <div id="sourceColumnsList"></div>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <div style="color: #667eea; font-size: 24px;">→</div>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 10px;">Target Columns</h4>
+                        <div id="targetColumnsList"></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-success" onclick="autoMapColumns()">✨ Auto-Map Columns</button>
+                    <small style="color: #666; font-size: 12px; margin-left: 10px;">Automatically map columns by name similarity</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeColumnMappingModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveColumnMappings()">Save Column Mappings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Menu Modal -->
+    <div class="modal" id="downloadMenuModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">📥 Download Options</div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <!-- Source Database -->
+                    <div style="border: 2px solid #667eea; border-radius: 8px; padding: 15px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #667eea;">📥 Source Database</h3>
+                        <button class="btn btn-primary" onclick="downloadSchema('source')" style="width: 100%; margin-bottom: 8px;">
+                            📄 Download Schema (JSON)
+                        </button>
+                        <button class="btn btn-primary" onclick="downloadDatabaseData('source')" style="width: 100%;">
+                            💾 Download Data (SQL)
+                        </button>
+                    </div>
+
+                    <!-- Target Database -->
+                    <div style="border: 2px solid #48bb78; border-radius: 8px; padding: 15px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #48bb78;">📤 Target Database</h3>
+                        <button class="btn btn-success" onclick="downloadSchema('target')" style="width: 100%; margin-bottom: 8px;">
+                            📄 Download Schema (JSON)
+                        </button>
+                        <button class="btn btn-success" onclick="downloadDatabaseData('target')" style="width: 100%;">
+                            💾 Download Data (SQL)
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; padding: 10px; background: #f7fafc; border-radius: 6px;">
+                    <p style="font-size: 12px; color: #666; margin: 0;">
+                        <strong>Schema:</strong> Table and column definitions (JSON format)<br>
+                        <strong>Data:</strong> All table data as SQL INSERT statements
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDownloadMenu()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div style="text-align: center;">
@@ -742,9 +835,12 @@
         // Schema data
         let sourceSchema = null;
         let targetSchema = null;
-        let tableMappings = {};
+        let tableMappings = {}; // { sourceTable: targetTable }
+        let columnMappings = {}; // { sourceTable: { sourceColumn: targetColumn } }
+        let tableConflictStrategies = {}; // { sourceTable: 'source-wins' | 'target-wins' | 'newest-wins' | 'manual' }
         let selectedSource = null;
         let selectedTarget = null;
+        let currentColumnMappingTable = null;
 
         // Initialize
         window.onload = function() {
@@ -1010,6 +1106,16 @@
         function createMapping(sourceTable, targetTable) {
             tableMappings[sourceTable] = targetTable;
 
+            // Initialize column mapping for this table (empty = no specific mappings)
+            if (!columnMappings[sourceTable]) {
+                columnMappings[sourceTable] = {};
+            }
+
+            // Initialize conflict strategy for this table (use default if not set)
+            if (!tableConflictStrategies[sourceTable]) {
+                tableConflictStrategies[sourceTable] = syncConfig.conflictStrategy || 'source-wins';
+            }
+
             // Update UI
             const sourceEl = document.querySelector(`.table-item[data-side="source"][data-table="${sourceTable}"]`);
             const targetEl = document.querySelector(`.table-item[data-side="target"][data-table="${targetTable}"]`);
@@ -1023,6 +1129,11 @@
 
             updateStats();
             drawMappingLines();
+
+            // Prompt user to map columns
+            if (confirm(`Table mapping created: ${sourceTable} → ${targetTable}\n\nWould you like to map columns now?`)) {
+                showColumnMappingModal(sourceTable, targetTable);
+            }
         }
 
         function drawMappingLines() {
@@ -1444,6 +1555,39 @@
                 tablesSelect.innerHTML += `<option value="${sourceTable}">${sourceTable} → ${targetTable}</option>`;
             });
 
+            // Populate per-table configuration
+            const perTableDiv = document.getElementById('perTableConfig');
+            perTableDiv.innerHTML = '';
+
+            Object.keys(tableMappings).forEach(sourceTable => {
+                const targetTable = tableMappings[sourceTable];
+                const currentStrategy = tableConflictStrategies[sourceTable] || syncConfig.conflictStrategy;
+                const columnCount = columnMappings[sourceTable] ? Object.keys(columnMappings[sourceTable]).length : 0;
+
+                const tableConfigDiv = document.createElement('div');
+                tableConfigDiv.style.cssText = 'padding: 10px; margin-bottom: 10px; background: #f7fafc; border-radius: 6px; border: 1px solid #e0e0e0;';
+                tableConfigDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: 600; font-size: 13px; color: #333;">
+                            ${sourceTable} → ${targetTable}
+                        </div>
+                        <button class="btn btn-small btn-secondary" onclick="showColumnMappingModal('${sourceTable}', '${targetTable}')" style="padding: 4px 8px; font-size: 11px;">
+                            🔗 Map Columns (${columnCount})
+                        </button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                        <label style="flex-shrink: 0;">Conflict Strategy:</label>
+                        <select id="strategy_${sourceTable}" onchange="updateTableStrategy('${sourceTable}', this.value)" style="flex: 1; padding: 4px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 12px;">
+                            <option value="source-wins" ${currentStrategy === 'source-wins' ? 'selected' : ''}>Source Wins</option>
+                            <option value="target-wins" ${currentStrategy === 'target-wins' ? 'selected' : ''}>Target Wins</option>
+                            <option value="newest-wins" ${currentStrategy === 'newest-wins' ? 'selected' : ''}>Newest Wins</option>
+                            <option value="manual" ${currentStrategy === 'manual' ? 'selected' : ''}>Manual</option>
+                        </select>
+                    </div>
+                `;
+                perTableDiv.appendChild(tableConfigDiv);
+            });
+
             // Load saved config
             document.getElementById('syncDirection').value = syncConfig.direction;
             document.getElementById('conflictStrategy').value = syncConfig.conflictStrategy;
@@ -1453,6 +1597,11 @@
             document.getElementById('validateData').checked = syncConfig.validateData;
 
             document.getElementById('syncConfigModal').classList.add('show');
+        }
+
+        function updateTableStrategy(sourceTable, strategy) {
+            tableConflictStrategies[sourceTable] = strategy;
+            console.log(`Updated conflict strategy for ${sourceTable}:`, strategy);
         }
 
         function closeSyncConfigModal() {
@@ -1642,6 +1791,234 @@
             } catch (error) {
                 console.error('Error detecting schema changes:', error);
                 return { hasChanges: false };
+            }
+        }
+
+        // ============================================
+        // COLUMN MAPPING FUNCTIONS
+        // ============================================
+
+        function showColumnMappingModal(sourceTable, targetTable) {
+            currentColumnMappingTable = sourceTable;
+
+            // Update modal titles
+            document.getElementById('colMapSourceTable').textContent = sourceTable;
+            document.getElementById('colMapTargetTable').textContent = targetTable;
+
+            // Get columns from schemas
+            const sourceTableData = sourceSchema.tables.find(t => t.name === sourceTable);
+            const targetTableData = targetSchema.tables.find(t => t.name === targetTable);
+
+            if (!sourceTableData || !targetTableData) {
+                alert('Error: Could not find table data');
+                return;
+            }
+
+            // Render source columns
+            const sourceColsList = document.getElementById('sourceColumnsList');
+            sourceColsList.innerHTML = '';
+            sourceTableData.columns.forEach(col => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column-item';
+                colDiv.style.cssText = 'padding: 8px; margin-bottom: 6px; background: white; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer;';
+                colDiv.setAttribute('data-column', col.name);
+                colDiv.innerHTML = `
+                    <div style="font-weight: 500; font-size: 12px;">${col.name}</div>
+                    <div style="font-size: 11px; color: #718096;">${col.dataType}</div>
+                `;
+                sourceColsList.appendChild(colDiv);
+            });
+
+            // Render target columns
+            const targetColsList = document.getElementById('targetColumnsList');
+            targetColsList.innerHTML = '';
+            targetTableData.columns.forEach(col => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column-item';
+                colDiv.style.cssText = 'padding: 8px; margin-bottom: 6px; background: white; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer;';
+                colDiv.setAttribute('data-column', col.name);
+                colDiv.innerHTML = `
+                    <div style="font-weight: 500; font-size: 12px;">${col.name}</div>
+                    <div style="font-size: 11px; color: #718096;">${col.dataType}</div>
+                `;
+
+                // Click to map
+                colDiv.addEventListener('click', () => {
+                    const sourceCols = sourceColsList.querySelectorAll('.column-item');
+                    const selected = Array.from(sourceCols).find(c => c.style.background === 'rgb(237, 242, 247)');
+                    if (selected) {
+                        const sourceCol = selected.getAttribute('data-column');
+                        const targetCol = col.name;
+                        if (!columnMappings[sourceTable]) columnMappings[sourceTable] = {};
+                        columnMappings[sourceTable][sourceCol] = targetCol;
+                        selected.style.background = '#c6f6d5';
+                        selected.style.borderColor = '#48bb78';
+                        colDiv.style.background = '#c6f6d5';
+                        colDiv.style.borderColor = '#48bb78';
+                    }
+                });
+
+                targetColsList.appendChild(colDiv);
+            });
+
+            // Make source columns selectable
+            sourceColsList.querySelectorAll('.column-item').forEach(colDiv => {
+                colDiv.addEventListener('click', () => {
+                    sourceColsList.querySelectorAll('.column-item').forEach(c => {
+                        c.style.background = 'white';
+                        c.style.borderColor = '#e0e0e0';
+                    });
+                    colDiv.style.background = '#edf2f7';
+                    colDiv.style.borderColor = '#667eea';
+                });
+            });
+
+            // Show existing mappings
+            if (columnMappings[sourceTable]) {
+                Object.entries(columnMappings[sourceTable]).forEach(([sourceCol, targetCol]) => {
+                    const sourceColDiv = Array.from(sourceColsList.querySelectorAll('.column-item')).find(c => c.getAttribute('data-column') === sourceCol);
+                    const targetColDiv = Array.from(targetColsList.querySelectorAll('.column-item')).find(c => c.getAttribute('data-column') === targetCol);
+                    if (sourceColDiv) {
+                        sourceColDiv.style.background = '#c6f6d5';
+                        sourceColDiv.style.borderColor = '#48bb78';
+                    }
+                    if (targetColDiv) {
+                        targetColDiv.style.background = '#c6f6d5';
+                        targetColDiv.style.borderColor = '#48bb78';
+                    }
+                });
+            }
+
+            document.getElementById('columnMappingModal').classList.add('show');
+        }
+
+        function autoMapColumns() {
+            if (!currentColumnMappingTable) return;
+
+            const sourceTable = currentColumnMappingTable;
+            const targetTable = tableMappings[sourceTable];
+            const sourceTableData = sourceSchema.tables.find(t => t.name === sourceTable);
+            const targetTableData = targetSchema.tables.find(t => t.name === targetTable);
+
+            if (!sourceTableData || !targetTableData) return;
+
+            if (!columnMappings[sourceTable]) columnMappings[sourceTable] = {};
+
+            let mapped = 0;
+            sourceTableData.columns.forEach(sourceCol => {
+                const sourceName = sourceCol.name.toLowerCase();
+                let targetCol = targetTableData.columns.find(c => c.name.toLowerCase() === sourceName);
+
+                if (targetCol) {
+                    columnMappings[sourceTable][sourceCol.name] = targetCol.name;
+                    mapped++;
+                }
+            });
+
+            alert(`Auto-mapped ${mapped} columns!`);
+            closeColumnMappingModal();
+            showColumnMappingModal(sourceTable, targetTable);
+        }
+
+        function saveColumnMappings() {
+            console.log('Column mappings saved:', columnMappings[currentColumnMappingTable]);
+            closeColumnMappingModal();
+        }
+
+        function closeColumnMappingModal() {
+            document.getElementById('columnMappingModal').classList.remove('show');
+            currentColumnMappingTable = null;
+        }
+
+        // ============================================
+        // DOWNLOAD FUNCTIONS
+        // ============================================
+
+        function showDownloadMenu() {
+            if (!sourceSchema || !targetSchema) {
+                alert('Please load schemas first!');
+                return;
+            }
+            document.getElementById('downloadMenuModal').classList.add('show');
+        }
+
+        function closeDownloadMenu() {
+            document.getElementById('downloadMenuModal').classList.remove('show');
+        }
+
+        function downloadSchema(side) {
+            const schema = side === 'source' ? sourceSchema : targetSchema;
+            const conn = side === 'source' ? config.source : config.target;
+
+            if (!schema) {
+                alert('Schema not loaded!');
+                return;
+            }
+
+            const data = {
+                database: conn.database,
+                type: conn.type,
+                host: conn.host,
+                port: conn.port,
+                schema: schema,
+                exportedAt: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${conn.database}_schema_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            console.log(`Downloaded ${side} schema`);
+        }
+
+        async function downloadDatabaseData(side) {
+            const conn = side === 'source' ? config.source : config.target;
+            const schema = side === 'source' ? sourceSchema : targetSchema;
+
+            if (!schema) {
+                alert('Schema not loaded!');
+                return;
+            }
+
+            if (!confirm(`Download all data from ${conn.database}?\n\nThis may take a while for large databases.`)) {
+                return;
+            }
+
+            showLoading(`Exporting ${side} database data...`);
+
+            try {
+                // Call API to export database data
+                const response = await fetch(`${config.apiBase}/schema/export-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(conn)
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (!data.success) {
+                    throw new Error(data.message || data.error || 'Export failed');
+                }
+
+                // Download the SQL file
+                const blob = new Blob([data.sql], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${conn.database}_data_${Date.now()}.sql`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                alert(`✅ Database data exported successfully!\n\n${data.recordCount || 'Unknown'} records exported.`);
+            } catch (error) {
+                hideLoading();
+                alert(`❌ Export failed: ${error.message}`);
+                console.error(error);
             }
         }
 
